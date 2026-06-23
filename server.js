@@ -28,7 +28,6 @@
         }
 
         // Attach listeners to the input fields so it updates dynamically as they type or when page loads
-        window.addEventListener('DOMContentLoaded', () => {
             if (window.location.pathname.includes('/admin')) {
                 document.getElementById('adminConsole').style.display = 'block';
             }
