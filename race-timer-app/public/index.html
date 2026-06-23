@@ -4,22 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Race Management</title>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; color: #333; }
         .card { background: #f8f9fa; border: 1px solid #e9ecef; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
         .timer-banner { background: #212529; color: #fff; text-align: center; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
         .timer-clock { font-size: 42px; font-family: monospace; font-weight: bold; color: #00ff66; margin: 5px 0; }
-        .form-group { margin-bottom: 12px; }
-        label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 14px; }
-        input { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 16px; }
+        input { width: 100%; padding: 12px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
         button { width: 100%; padding: 14px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px;}
         
-        /* HIDE ADMIN BY DEFAULT */
+        /* Step Screen Visibility Controls */
+        .step { display: none; }
+        .step.active { display: block; }
+        
         .admin-section { display: none; background: #fff3cd; border: 1px solid #ffeeba; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
         .admin-btns { display: flex; gap: 10px; }
-        
         #status { margin: 15px 0; padding: 10px; border-radius: 4px; font-weight: bold; text-align: center; display: none; }
-        .dashboard { margin-top: 30px; border-top: 2px dashed #ccc; padding-top: 20px; }
+        #reader { width: 100%; max-width: 400px; margin: 15px auto; background: white; border-radius: 8px; overflow: hidden; }
+        
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f1f1f1; }
@@ -43,22 +47,39 @@
     </div>
     
     <div class="card">
-        <h3>Runner Check-In</h3>
-        <div class="form-group">
-            <label>Email Address</label>
-            <input type="email" id="email" placeholder="runner@example.com">
-        </div>
-        <div class="form-group">
-            <label>First Name</label>
-            <input type="text" id="firstName">
-        </div>
-        <div class="form-group">
-            <label>Last Name</label>
-            <input type="text" id="lastName">
+        <div id="step1" class="step active">
+            <h3>Step 1: Identity</h3>
+            <div class="form-group">
+                <label>Enter your Registration Email</label>
+                <input type="email" id="email" placeholder="runner@example.com">
+            </div>
+            <button onclick="goToStep(2)">Next Step ➡️</button>
         </div>
 
-        <button id="scanBtn">📳 Scan NFC Tag to Check In</button>
-        <button id="manualBtn" style="background: #6c757d;">Submit Manually (Backup)</button>
+        <div id="step2" class="step">
+            <h3>Step 2: Runner Name</h3>
+            <div class="form-group">
+                <label>First Name</label>
+                <input type="text" id="firstName" placeholder="Jane">
+            </div>
+            <div class="form-group">
+                <label>Last Name</label>
+                <input type="text" id="lastName" placeholder="Doe">
+            </div>
+            <div style="display: flex; gap:10px;">
+                <button onclick="goToStep(1)" style="background:#6c757d;">⬅️ Back</button>
+                <button onclick="startQRScanner()">Next Step ➡️</button>
+            </div>
+        </div>
+
+        <div id="step3" class="step">
+            <h3>Step 3: Scan Finish Line QR Code</h3>
+            <p style="font-size: 14px; color: #666;">When you pass the layout, authorize camera access to scan the completion code.</p>
+            
+            <div id="reader"></div>
+            
+            <button id="manualBtn" style="background: #6c757d;">Backup Manual Finish</button>
+        </div>
         
         <div id="status"></div>
     </div>
@@ -80,17 +101,16 @@
     <script>
         let serverStartTime = null;
         let clockInterval = null;
+        let html5QrcodeScanner = null;
+
         const statusDiv = document.getElementById('status');
         const sharedClock = document.getElementById('sharedClock');
         const clockStatus = document.getElementById('clockStatus');
 
-        // Check the URL route on page load
         window.addEventListener('DOMContentLoaded', () => {
-            // Feature: If URL contains '/admin', show the admin panel
             if (window.location.pathname.includes('/admin')) {
                 document.getElementById('adminConsole').style.display = 'block';
             }
-
             document.getElementById('email').value = localStorage.getItem('test_email') || '';
             document.getElementById('firstName').value = localStorage.getItem('test_firstName') || '';
             document.getElementById('lastName').value = localStorage.getItem('test_lastName') || '';
@@ -98,6 +118,53 @@
             setInterval(syncRaceStatus, 5000); 
         });
 
+        function goToStep(stepNum) {
+            document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+            document.getElementById(`step${stepNum}`).classList.add('active');
+            
+            // If navigating away from scanner, kill the camera handle
+            if (stepNum !== 3 && html5QrcodeScanner) {
+                html5QrcodeScanner.clear();
+            }
+        }
+
+        async function startQRScanner() {
+            const email = document.getElementById('email').value.trim();
+            const fName = document.getElementById('firstName').value.trim();
+            const lName = document.getElementById('lastName').value.trim();
+
+            if(!email || !fName || !lName) {
+                alert("Please complete fields before continuing.");
+                return;
+            }
+
+            goToStep(3);
+
+            // Initialize camera tracking logic inside target container
+            html5QrcodeScanner = new Html5Qrcode("reader");
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+            try {
+                await html5QrcodeScanner.start(
+                    { facingMode: "environment" }, // Defaults back/rear camera
+                    config,
+                    onQrCodeSuccess
+                );
+            } catch (err) {
+                showStatus("Camera access denied or unavailable. Use backup button.", "#721c24", "#f8d7da");
+            }
+        }
+
+        async function onQrCodeSuccess(decodedText, decodedResult) {
+            // Stop scanning once a code hits the lens matrix
+            if(html5QrcodeScanner) {
+                await html5QrcodeScanner.stop();
+            }
+            // Trigger payload logging
+            sendDataToBackend();
+        }
+
+        // Keep rest of your synchronization engine intact
         function formatDuration(ms) {
             if (ms === null || ms === undefined) return "--:--:--";
             let totalSeconds = Math.floor(ms / 1000);
@@ -110,9 +177,7 @@
         function startLocalClockTicker() {
             if (clockInterval) clearInterval(clockInterval);
             clockInterval = setInterval(() => {
-                if (serverStartTime) {
-                    sharedClock.innerText = formatDuration(Date.now() - serverStartTime);
-                }
+                if (serverStartTime) sharedClock.innerText = formatDuration(Date.now() - serverStartTime);
             }, 250);
         }
 
@@ -122,15 +187,11 @@
                 const data = await res.json();
                 if (data.raceStartTime) {
                     serverStartTime = data.raceStartTime;
-                    clockStatus.innerText = "🟢 RACE IS LIVE";
-                    clockStatus.style.color = "#00ff66";
+                    clockStatus.innerText = "🟢 RACE IS LIVE"; clockStatus.style.color = "#00ff66";
                     startLocalClockTicker();
                 } else {
-                    serverStartTime = null;
-                    clearInterval(clockInterval);
-                    sharedClock.innerText = "00:00:00";
-                    clockStatus.innerText = "Waiting for Director to start race...";
-                    clockStatus.style.color = "#ffc107";
+                    serverStartTime = null; clearInterval(clockInterval);
+                    sharedClock.innerText = "00:00:00"; clockStatus.innerText = "Waiting for Director..."; clockStatus.style.color = "#ffc107";
                 }
                 updateDashboard();
             } catch (e) { console.error(e); }
@@ -138,15 +199,13 @@
 
         document.getElementById('startRaceBtn').addEventListener('click', async () => {
             const res = await fetch('/api/race/start', { method: 'POST' });
-            const data = await res.json();
-            if(data.success) syncRaceStatus();
+            const data = await res.json(); if(data.success) syncRaceStatus();
         });
 
         document.getElementById('resetRaceBtn').addEventListener('click', async () => {
-            if(confirm("Clear all data and clocks?")) {
+            if(confirm("Reset all clocks?")) {
                 const res = await fetch('/api/race/reset', { method: 'POST' });
-                const data = await res.json();
-                if(data.success) syncRaceStatus();
+                const data = await res.json(); if(data.success) syncRaceStatus();
             }
         });
 
@@ -154,11 +213,6 @@
             const firstName = document.getElementById('firstName').value.trim();
             const lastName = document.getElementById('lastName').value.trim();
             const email = document.getElementById('email').value.trim();
-
-            if(!email || !firstName || !lastName) {
-                showStatus("⚠️ Fill out fields first.", "#721c24", "#f8d7da");
-                return;
-            }
 
             localStorage.setItem('test_email', email);
             localStorage.setItem('test_firstName', firstName);
@@ -173,8 +227,9 @@
                 const result = await response.json();
                 if(result.success) {
                     if (navigator.vibrate) navigator.vibrate([150]); 
-                    showStatus(`✅ Logged!`, "#155724", "#d4edda");
+                    showStatus(`✅ Finish Logged!`, "#155724", "#d4edda");
                     updateDashboard();
+                    setTimeout(() => { goToStep(1); showStatus("", "", "transparent"); }, 5000); // Route back after 5s
                 }
             } catch (err) { showStatus("❌ Error saving data.", "#721c24", "#f8d7da"); }
         }
@@ -206,15 +261,6 @@
         }
 
         document.getElementById('manualBtn').addEventListener('click', sendDataToBackend);
-        document.getElementById('scanBtn').addEventListener('click', async () => {
-            if ('NDEFReader' in window) {
-                try {
-                    showStatus("📳 Antenna Active! Scan tag...", "#004085", "#cce5ff");
-                    const ndef = new NDEFReader(); await ndef.scan();
-                    ndef.onreading = async () => { await sendDataToBackend(); };
-                } catch (error) { showStatus(`NFC Error: ${error.message}`, "#721c24", "#f8d7da"); }
-            } else { showStatus("❌ Web NFC not supported here.", "#751d1d", "#fcd7d7"); }
-        });
     </script>
 </body>
 </html>
