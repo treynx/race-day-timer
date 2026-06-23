@@ -3,27 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Race Management Dashboard</title>
+    <title>Race Management</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; color: #333; }
         .card { background: #f8f9fa; border: 1px solid #e9ecef; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-        
-        /* Timer Display styling */
         .timer-banner { background: #212529; color: #fff; text-align: center; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
         .timer-clock { font-size: 42px; font-family: monospace; font-weight: bold; color: #00ff66; margin: 5px 0; }
-        
         .form-group { margin-bottom: 12px; }
         label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 14px; }
         input { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
         button { width: 100%; padding: 14px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px;}
-        button:active { filter: brightness(0.9); }
         
-        #status { margin: 15px 0; padding: 10px; border-radius: 4px; font-weight: bold; text-align: center; display: none; }
-        
-        /* Collapsible Section for Admin Controls */
-        .admin-section { background: #fff3cd; border: 1px solid #ffeeba; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        /* HIDE ADMIN BY DEFAULT */
+        .admin-section { display: none; background: #fff3cd; border: 1px solid #ffeeba; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
         .admin-btns { display: flex; gap: 10px; }
         
+        #status { margin: 15px 0; padding: 10px; border-radius: 4px; font-weight: bold; text-align: center; display: none; }
         .dashboard { margin-top: 30px; border-top: 2px dashed #ccc; padding-top: 20px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
@@ -39,7 +34,7 @@
         <div id="clockStatus" style="font-size: 12px; color: #ffc107;">Waiting for Director to start race...</div>
     </div>
 
-    <div class="admin-section">
+    <div class="admin-section" id="adminConsole">
         <label style="color: #856404; margin-bottom: 8px;">Race Director Console</label>
         <div class="admin-btns">
             <button id="startRaceBtn" style="background: #28a745; margin-top:0;">🏁 Start Race</button>
@@ -85,36 +80,42 @@
     <script>
         let serverStartTime = null;
         let clockInterval = null;
-
         const statusDiv = document.getElementById('status');
         const sharedClock = document.getElementById('sharedClock');
         const clockStatus = document.getElementById('clockStatus');
 
-        // Helper: Convert milliseconds to human-readable 00:00:00
+        // Check the URL route on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            // Feature: If URL contains '/admin', show the admin panel
+            if (window.location.pathname.includes('/admin')) {
+                document.getElementById('adminConsole').style.display = 'block';
+            }
+
+            document.getElementById('email').value = localStorage.getItem('test_email') || '';
+            document.getElementById('firstName').value = localStorage.getItem('test_firstName') || '';
+            document.getElementById('lastName').value = localStorage.getItem('test_lastName') || '';
+            syncRaceStatus();
+            setInterval(syncRaceStatus, 5000); 
+        });
+
         function formatDuration(ms) {
             if (ms === null || ms === undefined) return "--:--:--";
             let totalSeconds = Math.floor(ms / 1000);
             let hours = Math.floor(totalSeconds / 3600);
             let minutes = Math.floor((totalSeconds % 3600) / 60);
             let seconds = totalSeconds % 60;
-
-            return [hours, minutes, seconds]
-                .map(v => v < 10 ? "0" + v : v)
-                .join(":");
+            return [hours, minutes, seconds].map(v => v < 10 ? "0" + v : v).join(":");
         }
 
-        // Keep the clock ticker matching real-time offset
         function startLocalClockTicker() {
             if (clockInterval) clearInterval(clockInterval);
             clockInterval = setInterval(() => {
                 if (serverStartTime) {
-                    const elapsed = Date.now() - serverStartTime;
-                    sharedClock.innerText = formatDuration(elapsed);
+                    sharedClock.innerText = formatDuration(Date.now() - serverStartTime);
                 }
             }, 250);
         }
 
-        // Poll the server configuration to stay in sync with network state
         async function syncRaceStatus() {
             try {
                 const res = await fetch('/api/race/status');
@@ -132,26 +133,23 @@
                     clockStatus.style.color = "#ffc107";
                 }
                 updateDashboard();
-            } catch (e) { console.error("Sync failure", e); }
+            } catch (e) { console.error(e); }
         }
 
-        // Admin Action: Start
         document.getElementById('startRaceBtn').addEventListener('click', async () => {
             const res = await fetch('/api/race/start', { method: 'POST' });
             const data = await res.json();
             if(data.success) syncRaceStatus();
         });
 
-        // Admin Action: Reset
         document.getElementById('resetRaceBtn').addEventListener('click', async () => {
-            if(confirm("Clear all data and clocks for testing?")) {
+            if(confirm("Clear all data and clocks?")) {
                 const res = await fetch('/api/race/reset', { method: 'POST' });
                 const data = await res.json();
                 if(data.success) syncRaceStatus();
             }
         });
 
-        // User Action: Check-in logic
         async function sendDataToBackend() {
             const firstName = document.getElementById('firstName').value.trim();
             const lastName = document.getElementById('lastName').value.trim();
@@ -173,7 +171,6 @@
                     body: JSON.stringify({ email, firstName, lastName })
                 });
                 const result = await response.json();
-                
                 if(result.success) {
                     if (navigator.vibrate) navigator.vibrate([150]); 
                     showStatus(`✅ Logged!`, "#155724", "#d4edda");
@@ -186,17 +183,14 @@
             try {
                 const response = await fetch('/api/runners');
                 const runners = await response.json();
-                
                 document.getElementById('runnerCount').innerText = runners.length;
                 const tbody = document.querySelector('#runnersTable tbody');
                 tbody.innerHTML = '';
 
-                // Display tracking list with relative race elapsed durations
                 runners.reverse().forEach(runner => {
                     const row = document.createElement('tr');
                     const tod = new Date(runner.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
                     const durationText = runner.elapsedMs !== null ? formatDuration(runner.elapsedMs) : "Pre-Race";
-                    
                     row.innerHTML = `
                         <td style="font-family:monospace; font-weight:bold; color:${runner.elapsedMs ? '#007bff':'#6c757d'}">${durationText}</td>
                         <td>${runner.firstName} ${runner.lastName}</td>
@@ -210,15 +204,6 @@
         function showStatus(text, color, bgColor) {
             statusDiv.innerText = text; statusDiv.style.color = color; statusDiv.style.backgroundColor = bgColor; statusDiv.style.display = "block";
         }
-
-        // Event hooks
-        window.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('email').value = localStorage.getItem('test_email') || '';
-            document.getElementById('firstName').value = localStorage.getItem('test_firstName') || '';
-            document.getElementById('lastName').value = localStorage.getItem('test_lastName') || '';
-            syncRaceStatus();
-            setInterval(syncRaceStatus, 5000); // Poll status check every 5s to keep tabs aligned
-        });
 
         document.getElementById('manualBtn').addEventListener('click', sendDataToBackend);
         document.getElementById('scanBtn').addEventListener('click', async () => {
