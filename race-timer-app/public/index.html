@@ -159,19 +159,9 @@
     
     <!-- SYSTEM WORKFLOW INTERFACE -->
     <div class="card">
-        <!-- SCREEN 1: EMAIL -->
+        <!-- SCREEN 1: NAME FIELDS (NOW FIRST) -->
         <div id="step1" class="step active">
-            <h3 style="margin-top: 0;">Runner Identification</h3>
-            <div class="form-group">
-                <label>Enter Registration Email</label>
-                <input type="email" id="email" placeholder="runner@example.com">
-            </div>
-            <button id="toStep2Btn">Continue ➡️</button>
-        </div>
-
-        <!-- SCREEN 2: NAME FIELDS -->
-        <div id="step2" class="step">
-            <h3 style="margin-top: 0;">Runner Info</h3>
+            <h3 style="margin-top: 0;">Runner Entry</h3>
             <div class="form-group">
                 <label>First Name</label>
                 <input type="text" id="firstName" placeholder="Jane">
@@ -180,20 +170,20 @@
                 <label>Last Name</label>
                 <input type="text" id="lastName" placeholder="Doe">
             </div>
-            <div style="display: flex; gap:10px;">
-                <button id="backToStep1Btn" style="background:#555;">⬅️ Back</button>
-                <button id="toStep3Btn">Open Scanner 📷</button>
-            </div>
+            <button id="toStep2Btn">Scan Finish Line QR 📷</button>
         </div>
 
-        <!-- SCREEN 3: LOGGING GATE -->
-        <div id="step3" class="step">
+        <!-- SCREEN 2: LOGGING GATE -->
+        <div id="step2" class="step">
             <h3 style="margin-top: 0; color: var(--brand-orange);">Scan Finish Line Code</h3>
-            <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 15px;">Point your lens matrix directly at the official finish board code.</p>
+            <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 15px;">Point your lens directly at the official finish board code.</p>
             
             <div id="reader"></div>
             
-            <button id="manualBtn" style="background: #555;">Manual Backup Lockout</button>
+            <div style="display: flex; gap:10px;">
+                <button id="backToStep1Btn" style="background:#555;">⬅️ Edit Name</button>
+                <button id="manualBtn" style="background: #ff5500;">Manual Backup Lockout</button>
+            </div>
         </div>
         
         <div id="status"></div>
@@ -227,18 +217,12 @@
             if (window.location.pathname.includes('/admin')) {
                 document.getElementById('adminConsole').style.display = 'block';
             }
-            document.getElementById('email').value = localStorage.getItem('test_email') || '';
             document.getElementById('firstName').value = localStorage.getItem('test_firstName') || '';
             document.getElementById('lastName').value = localStorage.getItem('test_lastName') || '';
             
             // Wire up navigation buttons explicitly
-            document.getElementById('toStep2Btn').addEventListener('click', () => {
-                const email = document.getElementById('email').value.trim();
-                if(!email) { alert("Please enter your email to proceed."); return; }
-                goToStep(2);
-            });
+            document.getElementById('toStep2Btn').addEventListener('click', startQRScanner);
             document.getElementById('backToStep1Btn').addEventListener('click', () => goToStep(1));
-            document.getElementById('toStep3Btn').addEventListener('click', startQRScanner);
             document.getElementById('manualBtn').addEventListener('click', sendDataToBackend);
             
             syncRaceStatus();
@@ -248,22 +232,21 @@
         function goToStep(stepNum) {
             document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
             document.getElementById(`step${stepNum}`).classList.add('active');
-            if (stepNum !== 3 && html5QrcodeScanner) {
+            if (stepNum !== 2 && html5QrcodeScanner) {
                 html5QrcodeScanner.clear().catch(e => console.error(e));
             }
         }
 
         async function startQRScanner() {
-            const email = document.getElementById('email').value.trim();
             const fName = document.getElementById('firstName').value.trim();
             const lName = document.getElementById('lastName').value.trim();
 
-            if(!email || !fName || !lName) {
-                alert("Please fill out your identity info first!");
+            if(!fName || !lName) {
+                alert("Please enter your first and last name first!");
                 return;
             }
 
-            goToStep(3);
+            goToStep(2);
 
             html5QrcodeScanner = new Html5Qrcode("reader");
             const config = { fps: 15, qrbox: { width: 250, height: 250 } };
@@ -340,9 +323,7 @@
         async function sendDataToBackend() {
             const firstName = document.getElementById('firstName').value.trim();
             const lastName = document.getElementById('lastName').value.trim();
-            const email = document.getElementById('email').value.trim();
 
-            localStorage.setItem('test_email', email);
             localStorage.setItem('test_firstName', firstName);
             localStorage.setItem('test_lastName', lastName);
 
@@ -350,7 +331,7 @@
                 const response = await fetch('/api/checkin', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, firstName, lastName })
+                    body: JSON.stringify({ firstName, lastName })
                 });
                 const result = await response.json();
                 if(result.success) {
