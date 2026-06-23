@@ -282,11 +282,11 @@
         <div id="nameEntryCard" class="card">
             <div class="form-group">
                 <label>First Name</label>
-                <input type="text" id="firstName" placeholder="Jane">
+                <input type="text" id="firstName" placeholder="Jane" maxlength="50">
             </div>
             <div class="form-group">
                 <label>Last Name</label>
-                <input type="text" id="lastName" placeholder="Doe">
+                <input type="text" id="lastName" placeholder="Doe" maxlength="50">
             </div>
             <button id="openScannerBtn">Scan Loop QR Code</button>
         </div>
@@ -365,6 +365,7 @@
 
             try {
                 const response = await fetch('/api/runners');
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const runners = await response.json();
                 const match = runners.find(r => 
                     r.firstName.toLowerCase() === firstName.toLowerCase() && 
@@ -379,7 +380,9 @@
                 } else {
                     scanBtn.innerText = "Scan Loop QR Code";
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) { 
+                console.error('Error checking existing runner:', e);
+            }
         }
 
         window.addEventListener('DOMContentLoaded', () => {
@@ -486,6 +489,7 @@
         async function syncRaceStatus() {
             try {
                 const res = await fetch('/api/race/status');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
                 if (data.raceStartTime) {
                     serverStartTime = data.raceStartTime;
@@ -496,24 +500,43 @@
                     currentLapLabel.innerText = "Race Ready";
                 }
                 updateDashboard();
-            } catch (e) { console.error(e); }
+            } catch (e) { 
+                console.error('Error syncing race status:', e);
+            }
         }
 
         document.getElementById('startRaceBtn').addEventListener('click', async () => {
-            const res = await fetch('/api/race/start', { method: 'POST' });
-            if((await res.json()).success) syncRaceStatus();
+            try {
+                const res = await fetch('/api/race/start', { method: 'POST' });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                if(data.success) syncRaceStatus();
+            } catch (err) {
+                showStatus("Failed to start race.", "#c92a2a", "#fff5f5");
+            }
         });
 
         document.getElementById('resetRaceBtn').addEventListener('click', async () => {
             if(confirm("Wipe all active log structures?")) {
-                const res = await fetch('/api/race/reset', { method: 'POST' });
-                if((await res.json()).success) syncRaceStatus();
+                try {
+                    const res = await fetch('/api/race/reset', { method: 'POST' });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const data = await res.json();
+                    if(data.success) syncRaceStatus();
+                } catch (err) {
+                    showStatus("Failed to reset race.", "#c92a2a", "#fff5f5");
+                }
             }
         });
 
         async function sendDataToBackend() {
             const firstName = document.getElementById('firstName').value.trim();
             const lastName = document.getElementById('lastName').value.trim();
+
+            if (!firstName || !lastName) {
+                showStatus("Name fields cannot be empty.", "#c92a2a", "#fff5f5");
+                return;
+            }
 
             localStorage.setItem('test_firstName', firstName);
             localStorage.setItem('test_lastName', lastName);
@@ -524,13 +547,20 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ firstName, lastName })
                 });
-                if((await response.json()).success) {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                if(data.success) {
                     if (navigator.vibrate) navigator.vibrate([100, 50, 100]); 
                     showStatus("LAP LOGGED SUCCESSFULLY", "#2b8a3e", "#ebfbee");
                     updateDashboard();
                     setTimeout(() => { stopQRScanner(); showStatus("", "", "transparent"); checkExistingRunner(); }, 2000);
+                } else {
+                    showStatus(data.error || "Failed to log lap.", "#c92a2a", "#fff5f5");
                 }
-            } catch (err) { showStatus("Transmission error protocol path drop.", "#c92a2a", "#fff5f5"); }
+            } catch (err) { 
+                showStatus("Transmission error protocol path drop.", "#c92a2a", "#fff5f5");
+                console.error('Error sending data to backend:', err);
+            }
         }
 
         function toggleRowExpand(runnerId) {
@@ -548,6 +578,7 @@
         async function updateDashboard() {
             try {
                 const response = await fetch('/api/runners');
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const runners = await response.json();
                 
                 const activeBody = document.getElementById('leaderboardBody');
@@ -603,7 +634,7 @@
                         <td><span class="badge ${badgeClass}">${currentRank}</span></td>
                         <td>
                             <div class="runner-name-block">
-                                <span class="runner-name">${runner.firstName} ${runner.lastName}</span>
+                                <span class="runner-name">${escapeHtml(runner.firstName + ' ' + runner.lastName)}</span>
                                 <span class="runner-bib">Bib #${simulatedBib}</span>
                             </div>
                         </td>
@@ -654,7 +685,7 @@
                         <td><span class="badge badge-dnf">DNF</span></td>
                         <td>
                             <div class="runner-name-block">
-                                <span class="runner-name" style="text-decoration: line-through;">${runner.firstName} ${runner.lastName}</span>
+                                <span class="runner-name" style="text-decoration: line-through;">${escapeHtml(runner.firstName + ' ' + runner.lastName)}</span>
                                 <span class="runner-bib">Bib #${simulatedBib}</span>
                             </div>
                         </td>
@@ -669,11 +700,22 @@
                     currentLapLabel.innerText = "Race Finished";
                 }
 
-            } catch (e) { console.error(e); }
+            } catch (e) { 
+                console.error('Error updating dashboard:', e);
+            }
         }
 
         function showStatus(text, color, bgColor) {
-            statusDiv.innerText = text; statusDiv.style.color = color; statusDiv.style.backgroundColor = bgColor; statusDiv.style.display = "block";
+            statusDiv.innerText = text; 
+            statusDiv.style.color = color; 
+            statusDiv.style.backgroundColor = bgColor; 
+            statusDiv.style.display = "block";
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
     </script>
 </body>

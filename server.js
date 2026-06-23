@@ -5,8 +5,8 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Point Express directly to the ROOT directory for static files
-app.use(express.static(__dirname));
+// Point Express to the race-timer-app/public directory for static files
+app.use(express.static(path.join(__dirname, 'race-timer-app/public')));
 
 // In-Memory State Engines
 let raceStartTime = null;
@@ -37,23 +37,33 @@ app.get('/api/runners', (req, res) => {
 
 app.post('/api/checkin', (req, res) => {
     const { firstName, lastName } = req.body;
-    if (!firstName || !lastName) {
-        return res.status(400).json({ success: false, error: "Missing identity tags." });
+    
+    // Validate inputs
+    if (!firstName || !lastName || typeof firstName !== 'string' || typeof lastName !== 'string') {
+        return res.status(400).json({ success: false, error: "Missing or invalid identity tags." });
+    }
+    
+    // Sanitize and validate length
+    const sanitizedFirstName = firstName.trim().substring(0, 50);
+    const sanitizedLastName = lastName.trim().substring(0, 50);
+    
+    if (!sanitizedFirstName || !sanitizedLastName) {
+        return res.status(400).json({ success: false, error: "Names cannot be empty." });
     }
 
     const now = Date.now();
     const totalElapsedMs = raceStartTime ? (now - raceStartTime) : 0;
 
     let runner = runners.find(r => 
-        r.firstName.toLowerCase() === firstName.toLowerCase() && 
-        r.lastName.toLowerCase() === lastName.toLowerCase()
+        r.firstName.toLowerCase() === sanitizedFirstName.toLowerCase() && 
+        r.lastName.toLowerCase() === sanitizedLastName.toLowerCase()
     );
 
     if (!runner) {
         runner = {
             id: `runner-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-            firstName,
-            lastName,
+            firstName: sanitizedFirstName,
+            lastName: sanitizedLastName,
             laps: 1,
             timestamp: now,
             elapsedMs: totalElapsedMs,
@@ -71,9 +81,9 @@ app.post('/api/checkin', (req, res) => {
     res.json({ success: true, runner });
 });
 
-// Fallback logic: Send index.html directly from the root folder
+// Fallback logic: Send index.html from the static directory
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(__dirname, 'race-timer-app/public/index.html'));
 });
 
 app.listen(PORT, () => {
