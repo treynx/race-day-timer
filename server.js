@@ -1,61 +1,51 @@
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
-const app = express();
-const PORT = process.env.PORT || 3000;
+// Call this helper to evaluate if a returning runner is already registered
+        async function checkExistingRunner() {
+            const firstName = document.getElementById('firstName').value.trim();
+            const lastName = document.getElementById('lastName').value.trim();
+            
+            if (!firstName || !lastName) return;
 
-app.use(express.json());
+            try {
+                const response = await fetch('/api/runners');
+                const runners = await response.json();
+                
+                // See if this runner already exists in the active or DNF database
+                const match = runners.find(r => 
+                    r.firstName.toLowerCase() === firstName.toLowerCase() && 
+                    r.lastName.toLowerCase() === lastName.toLowerCase()
+                );
 
-// Assets routing
-app.use(express.static(path.join(__dirname, 'race-timer-app', 'public')));
-app.use(express.static(path.join(__dirname, 'race-timer-app')));
+                const scanBtn = document.getElementById('openScannerBtn');
+                if (match) {
+                    scanBtn.innerText = `Scan Loop QR (Lap ${match.laps + 1})`;
+                    showStatus(`RECONNECTED: Found active profile for ${firstName}.`, "#0066cc", "#edf2f7");
+                    // Keep the status visible for 3 seconds then fade out
+                    setTimeout(() => { showStatus("", "", "transparent"); }, 3000);
+                } else {
+                    scanBtn.innerText = "Scan Loop QR Code";
+                }
+            } catch (e) { console.error("Sync verification failed", e); }
+        }
 
-// 1. PUBLIC RUNNER PORTAL (Normal Link)
-app.get('/', (req, res) => {
-    const path1 = path.join(__dirname, 'race-timer-app', 'public', 'index.html');
-    const path2 = path.join(__dirname, 'race-timer-app', 'index.html');
-    const targetFile = fs.existsSync(path1) ? path1 : path2;
-    res.sendFile(targetFile);
-});
+        // Attach listeners to the input fields so it updates dynamically as they type or when page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            if (window.location.pathname.includes('/admin')) {
+                document.getElementById('adminConsole').style.display = 'block';
+            }
+            
+            document.getElementById('firstName').value = localStorage.getItem('test_firstName') || '';
+            document.getElementById('lastName').value = localStorage.getItem('test_lastName') || '';
+            
+            // Check right away on load if we have cached names
+            checkExistingRunner();
 
-// 2. PRIVATE ADMINISTRATIVE PORTAL (Secret Link)
-app.get('/admin', (req, res) => {
-    const path1 = path.join(__dirname, 'race-timer-app', 'public', 'index.html');
-    const path2 = path.join(__dirname, 'race-timer-app', 'index.html');
-    const targetFile = fs.existsSync(path1) ? path1 : path2;
-    res.sendFile(targetFile);
-});
-
-// --- API Endpoints ---
-let raceStartTime = null; 
-const checkIns = [];
-
-app.post('/api/race/start', (req, res) => {
-    if (!raceStartTime) raceStartTime = Date.now();
-    res.json({ success: true, raceStartTime });
-});
-
-app.post('/api/race/reset', (req, res) => {
-    raceStartTime = null;
-    checkIns.length = 0; 
-    res.json({ success: true });
-});
-
-app.get('/api/race/status', (req, res) => {
-    res.json({ raceStartTime });
-});
-
-app.post('/api/checkin', (req, res) => {
-    const { email, firstName, lastName } = req.body;
-    const now = Date.now();
-    let elapsedMs = raceStartTime && now > raceStartTime ? now - raceStartTime : null;
-    const newCheckIn = { email, firstName, lastName, timestamp: new Date(now).toISOString(), elapsedMs };
-    checkIns.push(newCheckIn);
-    res.status(200).json({ success: true, data: newCheckIn });
-});
-
-app.get('/api/runners', (req, res) => {
-    res.json(checkIns);
-});
-
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+            // Also check if they manually re-type their name
+            document.getElementById('firstName').addEventListener('input', checkExistingRunner);
+            document.getElementById('lastName').addEventListener('input', checkExistingRunner);
+            
+            document.getElementById('openScannerBtn').addEventListener('click', startQRScanner);
+            document.getElementById('abortScanBtn').addEventListener('click', stopQRScanner);
+            
+            syncRaceStatus();
+            setInterval(syncRaceStatus, 5000); 
+        });
