@@ -1,15 +1,25 @@
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.static('public'));
+// Dynamic File Locator: Finds index.html whether it's in a /public folder or the root!
+if (fs.existsSync(path.join(__dirname, 'public'))) {
+    app.use(express.static('public'));
+    console.log("📁 Serving frontend from /public folder");
+} else {
+    app.use(express.static(__dirname));
+    console.log("📁 Serving frontend from root folder");
+}
+
 app.use(express.json());
 
 // Global Race Variables
-let raceStartTime = null; // Stored as a timestamp millisecond value when started
+let raceStartTime = null; 
 const checkIns = [];
 
-// Endpoint to START the race (Admin feature)
+// Endpoint to START the race
 app.post('/api/race/start', (req, res) => {
     if (!raceStartTime) {
         raceStartTime = Date.now();
@@ -18,11 +28,11 @@ app.post('/api/race/start', (req, res) => {
     res.json({ success: true, raceStartTime });
 });
 
-// Endpoint to RESET the race if you need to re-test
+// Endpoint to RESET the race
 app.post('/api/race/reset', (req, res) => {
     raceStartTime = null;
-    checkIns.length = 0; // Clears the array
-    console.log("🔄 Race and database reset for testing.");
+    checkIns.length = 0; 
+    console.log("🔄 Race and database reset.");
     res.json({ success: true, message: "Race reset successfully." });
 });
 
@@ -36,7 +46,6 @@ app.post('/api/checkin', (req, res) => {
     const { email, firstName, lastName } = req.body;
     const now = Date.now();
     
-    // Calculate elapsed race time if the race has begun
     let elapsedMs = null;
     if (raceStartTime && now > raceStartTime) {
         elapsedMs = now - raceStartTime;
