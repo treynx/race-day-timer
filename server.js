@@ -5,8 +5,8 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Point Express directly to your "public" folder for static files
-app.use(express.static(path.join(__dirname, 'public')));
+// Point Express directly to the ROOT directory for static files
+app.use(express.static(__dirname));
 
 // In-Memory State Engines
 let raceStartTime = null;
@@ -71,9 +71,9 @@ app.post('/api/checkin', (req, res) => {
     res.json({ success: true, runner });
 });
 
-// Fallback logic: Send index.html explicitly out of the public folder
+// Fallback logic: Send index.html directly from the root folder
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.listen(PORT, () => {
