@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Churn & Burn Race Tracker</title>
+    <!-- Include the QR Code Camera Scanner Library -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         :root {
@@ -134,17 +135,20 @@
 </head>
 <body>
 
+    <!-- BRAND GRAPHIC HEADER -->
     <div class="brand-header">
         <h1>Churn & Burn</h1>
         <p>Running Club • Timing System</p>
     </div>
 
+    <!-- OFFICIAL RACE TIME BANNER -->
     <div class="timer-banner">
         <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-muted);">Official Race Clock</div>
         <div class="timer-clock" id="sharedClock">00:00:00</div>
         <div id="clockStatus" style="font-size: 12px; color: #ffc107; text-transform: uppercase; font-weight: 700;">Awaiting Race Start...</div>
     </div>
 
+    <!-- DIRECTOR CONSOLE -->
     <div class="admin-section" id="adminConsole">
         <label style="color: #ffc107; margin-bottom: 8px;">Race Director Console</label>
         <div class="admin-btns">
@@ -153,16 +157,19 @@
         </div>
     </div>
     
+    <!-- SYSTEM WORKFLOW INTERFACE -->
     <div class="card">
+        <!-- SCREEN 1: EMAIL -->
         <div id="step1" class="step active">
             <h3 style="margin-top: 0;">Runner Identification</h3>
             <div class="form-group">
                 <label>Enter Registration Email</label>
                 <input type="email" id="email" placeholder="runner@example.com">
             </div>
-            <button onclick="goToStep(2)">Continue ➡️</button>
+            <button id="toStep2Btn">Continue ➡️</button>
         </div>
 
+        <!-- SCREEN 2: NAME FIELDS -->
         <div id="step2" class="step">
             <h3 style="margin-top: 0;">Runner Info</h3>
             <div class="form-group">
@@ -174,11 +181,12 @@
                 <input type="text" id="lastName" placeholder="Doe">
             </div>
             <div style="display: flex; gap:10px;">
-                <button onclick="goToStep(1)" style="background:#555;">⬅️ Back</button>
-                <button onclick="startQRScanner()">Open Scanner 📷</button>
+                <button id="backToStep1Btn" style="background:#555;">⬅️ Back</button>
+                <button id="toStep3Btn">Open Scanner 📷</button>
             </div>
         </div>
 
+        <!-- SCREEN 3: LOGGING GATE -->
         <div id="step3" class="step">
             <h3 style="margin-top: 0; color: var(--brand-orange);">Scan Finish Line Code</h3>
             <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 15px;">Point your lens matrix directly at the official finish board code.</p>
@@ -191,8 +199,9 @@
         <div id="status"></div>
     </div>
 
+    <!-- REAL-TIME TIMING GRAPH -->
     <div class="dashboard">
-        <h3>Live Leaderboard <span class="count-badge" id="runnerCount">0 Finshers</span></h3>
+        <h3>Live Leaderboard <span class="count-badge" id="runnerCount">0 Finishers</span></h3>
         <table id="runnersTable">
             <thead>
                 <tr>
@@ -221,6 +230,17 @@
             document.getElementById('email').value = localStorage.getItem('test_email') || '';
             document.getElementById('firstName').value = localStorage.getItem('test_firstName') || '';
             document.getElementById('lastName').value = localStorage.getItem('test_lastName') || '';
+            
+            // Wire up navigation buttons explicitly
+            document.getElementById('toStep2Btn').addEventListener('click', () => {
+                const email = document.getElementById('email').value.trim();
+                if(!email) { alert("Please enter your email to proceed."); return; }
+                goToStep(2);
+            });
+            document.getElementById('backToStep1Btn').addEventListener('click', () => goToStep(1));
+            document.getElementById('toStep3Btn').addEventListener('click', startQRScanner);
+            document.getElementById('manualBtn').addEventListener('click', sendDataToBackend);
+            
             syncRaceStatus();
             setInterval(syncRaceStatus, 5000); 
         });
@@ -229,7 +249,7 @@
             document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
             document.getElementById(`step${stepNum}`).classList.add('active');
             if (stepNum !== 3 && html5QrcodeScanner) {
-                html5QrcodeScanner.clear();
+                html5QrcodeScanner.clear().catch(e => console.error(e));
             }
         }
 
@@ -255,17 +275,17 @@
                     onQrCodeSuccess
                 );
             } catch (err) {
-                showStatus("Camera block encountered. Use backup manual button.", "#ff3333", "#3a1a1a");
+                showStatus("Camera block encountered or unavailable. Use backup manual button.", "#ff3333", "#3a1a1a");
             }
         }
 
         async function onQrCodeSuccess(decodedText, decodedResult) {
-            // BRANDED VERIFICATION: Looks specifically for your unique Churn and Burn tracking tag text
             if (decodedText.trim() === "CHURN_AND_BURN_FINISH") {
-                if(html5QrcodeScanner) await html5QrcodeScanner.stop();
+                if(html5QrcodeScanner) {
+                    try { await html5QrcodeScanner.stop(); } catch(e) { console.error(e); }
+                }
                 sendDataToBackend();
             } else {
-                // If they scan a random QR code by mistake
                 showStatus("⚠️ Invalid QR Code. Scan the official Churn & Burn Finish board.", "#ffcc00", "#332a1a");
             }
         }
@@ -292,8 +312,81 @@
                 const data = await res.json();
                 if (data.raceStartTime) {
                     serverStartTime = data.raceStartTime;
-                    clockStatus.innerText = "⚡ RACE IS LIVE ⚡"; clockStatus.style.color = var(--brand-green);
+                    clockStatus.innerText = "⚡ RACE IS LIVE ⚡"; 
+                    clockStatus.style.color = "#00ff66";
                     startLocalClockTicker();
                 } else {
                     serverStartTime = null; clearInterval(clockInterval);
-                    sharedClock.innerText
+                    sharedClock.innerText = "00:00:00"; 
+                    clockStatus.innerText = "Awaiting Race Start..."; 
+                    clockStatus.style.color = "#ffc107";
+                }
+                updateDashboard();
+            } catch (e) { console.error(e); }
+        }
+
+        document.getElementById('startRaceBtn').addEventListener('click', async () => {
+            const res = await fetch('/api/race/start', { method: 'POST' });
+            const data = await res.json(); if(data.success) syncRaceStatus();
+        });
+
+        document.getElementById('resetRaceBtn').addEventListener('click', async () => {
+            if(confirm("Wipe standings data and clear race systems?")) {
+                const res = await fetch('/api/race/reset', { method: 'POST' });
+                const data = await res.json(); if(data.success) syncRaceStatus();
+            }
+        });
+
+        async function sendDataToBackend() {
+            const firstName = document.getElementById('firstName').value.trim();
+            const lastName = document.getElementById('lastName').value.trim();
+            const email = document.getElementById('email').value.trim();
+
+            localStorage.setItem('test_email', email);
+            localStorage.setItem('test_firstName', firstName);
+            localStorage.setItem('test_lastName', lastName);
+
+            try {
+                const response = await fetch('/api/checkin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, firstName, lastName })
+                });
+                const result = await response.json();
+                if(result.success) {
+                    if (navigator.vibrate) navigator.vibrate([150, 50, 150]); 
+                    showStatus("🔥 FINISH TIME CLOCKED CORRECTLY!", "#00ff66", "#1a3a22");
+                    updateDashboard();
+                    setTimeout(() => { goToStep(1); showStatus("", "", "transparent"); }, 4000);
+                }
+            } catch (err) { showStatus("❌ Transmission system error.", "#ff3333", "#3a1a1a"); }
+        }
+
+        async function updateDashboard() {
+            try {
+                const response = await fetch('/api/runners');
+                const runners = await response.json();
+                document.getElementById('runnerCount').innerText = `${runners.length} Finishers`;
+                const tbody = document.querySelector('#runnersTable tbody');
+                tbody.innerHTML = '';
+
+                runners.reverse().forEach(runner => {
+                    const row = document.createElement('tr');
+                    const tod = new Date(runner.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+                    const durationText = runner.elapsedMs !== null ? formatDuration(runner.elapsedMs) : "Pre-Race";
+                    row.innerHTML = `
+                        <td style="font-family:monospace; font-weight:bold; color:${runner.elapsedMs ? '#ff5500':'#6c757d'}">${durationText}</td>
+                        <td>${runner.firstName} ${runner.lastName}</td>
+                        <td style="color:var(--text-muted); font-size: 12px;">${tod}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        function showStatus(text, color, bgColor) {
+            statusDiv.innerText = text; statusDiv.style.color = color; statusDiv.style.backgroundColor = bgColor; statusDiv.style.display = "block";
+        }
+    </script>
+</body>
+</html>
