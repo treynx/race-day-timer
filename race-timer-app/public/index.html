@@ -7,34 +7,31 @@
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         :root {
-            --bg-color: #1a1a1a;
-            --card-bg: #2d2d2d;
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
             --text-main: #ffffff;
             --text-muted: #aaaaaa;
             --brand-orange: #ff5500; /* Race Fire Orange */
             --brand-green: #00ff66;  /* Neon Timer Green */
-            --border-color: #444444;
+            --border-color: #333333;
         }
 
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
             max-width: 600px; 
             margin: 0 auto; 
-            padding: 20px; 
+            padding: 10px 10px 80px 10px; /* Extra bottom padding so tabs don't block content */
             color: var(--text-main); 
             background-color: var(--bg-color);
         }
 
-        /* HIDE MAIN SYSTEM ON INITIAL ENTRY LOAD */
-        .race-app-content { display: none; }
-
         /* Branding Header */
         .brand-header {
             text-align: center;
-            margin-bottom: 5px;
+            margin-bottom: 15px;
         }
         .brand-header h1 {
-            font-size: 32px;
+            font-size: 28px;
             font-weight: 900;
             text-transform: uppercase;
             letter-spacing: -1px;
@@ -43,51 +40,89 @@
             font-style: italic;
         }
         .brand-header p {
-            font-size: 13px;
+            font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 2px;
             color: var(--text-muted);
-            margin: 5px 0 20px 0;
+            margin: 3px 0 0 0;
         }
+
+        /* Top Persistent Clock Status Bar */
+        .status-bar {
+            background: #1a1a1a;
+            border: 1px solid var(--border-color);
+            border-radius: 30px;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .status-clock {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            color: var(--brand-green);
+            font-size: 20px;
+            text-shadow: 0 0 8px rgba(0, 255, 102, 0.2);
+        }
+        .status-count {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--brand-orange);
+        }
+
+        /* Tab Content Control */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
 
         .card { 
             background: var(--card-bg); 
             border: 1px solid var(--border-color); 
-            padding: 25px; 
-            border-radius: 12px; 
-            margin-top: 40px;
-            margin-bottom: 20px; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        }
-
-        /* Live Clock Panel */
-        .timer-banner { 
-            background: #111111; 
-            text-align: center; 
             padding: 20px; 
             border-radius: 12px; 
             margin-bottom: 20px; 
-            border: 1px solid #333;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
-        .timer-clock { 
-            font-size: 48px; 
-            font-family: 'Courier New', monospace; 
-            font-weight: bold; 
-            color: var(--brand-green); 
-            margin: 5px 0; 
-            text-shadow: 0 0 10px rgba(0, 255, 102, 0.3);
+
+        /* Map Module Container */
+        .map-container {
+            width: 100%;
+            height: 350px;
+            background: #252525;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        
-        .form-group { margin-bottom: 18px; }
-        label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px; text-transform: uppercase; color: var(--text-muted); }
+        .map-grid-overlay {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(#333 1px, transparent 1px);
+            background-size: 20px 20px;
+            opacity: 0.5;
+        }
+        .map-placeholder-text {
+            z-index: 2;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 12px; text-transform: uppercase; color: var(--text-muted); }
         input { 
             width: 100%; 
             padding: 14px; 
             box-sizing: border-box; 
-            border: 2px solid var(--border-color); 
+            border: 1px solid var(--border-color); 
             border-radius: 6px; 
             font-size: 16px; 
-            background: #1f1f1f; 
+            background: #151515; 
             color: #fff;
         }
         input:focus { border-color: var(--brand-orange); outline: none; }
@@ -104,108 +139,156 @@
             font-weight: 800; 
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-top: 10px;
             transition: transform 0.1s ease;
         }
         button:active { transform: scale(0.98); }
         
-        /* Step Configuration toggles */
-        .step { display: none; }
-        .step.active { display: block; }
+        #status { margin: 15px 0; padding: 12px; border-radius: 6px; font-weight: bold; text-align: center; display: none; }
+        #reader { width: 100%; max-width: 400px; margin: 15px auto; background: #000; border-radius: 8px; overflow: hidden; border: 2px dashed var(--border-color); }
         
-        /* Admin Section Box */
+        /* Table Styling */
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); }
+        th { background-color: #151515; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; color: var(--text-muted); }
+        
+        /* Bottom Sticky Navigation Dock */
+        .nav-dock {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1a1a1a;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0 calc(10px + env(safe-area-inset-bottom, 0px)) 0; /* Accommodates modern phone gesture bars */
+            z-index: 1000;
+        }
+        .nav-tab {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            width: auto;
+            padding: 5px;
+            margin: 0;
+        }
+        .nav-tab span.icon { font-size: 20px; }
+        .nav-tab.active {
+            color: var(--brand-orange);
+        }
+
+        /* Admin Box Styling */
         .admin-section { 
             display: none; 
-            background: #3a2512; 
-            border: 1px solid #663d14; 
+            background: #2a1808; 
+            border: 1px solid #5a300a; 
             padding: 15px; 
             border-radius: 12px; 
             margin-bottom: 20px; 
         }
-        .admin-btns { display: flex; gap: 10px; }
-        
-        #status { margin: 15px 0; padding: 12px; border-radius: 6px; font-weight: bold; text-align: center; display: none; }
-        #reader { width: 100%; max-width: 400px; margin: 15px auto; background: #222; border-radius: 8px; overflow: hidden; border: 2px dashed var(--border-color); }
-        
-        /* Standings Feed styling */
-        .dashboard { margin-top: 35px; border-top: 2px dashed var(--border-color); padding-top: 20px; }
-        .dashboard h3 { text-transform: uppercase; letter-spacing: 1px; font-style: italic; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); }
-        th { background-color: #222; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; color: var(--text-muted); }
-        .count-badge { background: var(--brand-orange); color: white; padding: 3px 10px; border-radius: 20px; font-size: 13px; font-weight: bold; float: right; font-style: normal; }
+        .admin-btns { display: flex; gap: 10px; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-    <div id="initialEntryCard" class="card">
-        <div class="brand-header">
-            <h1>Churn & Burn</h1>
-            <p>Timing Portal Entry</p>
-        </div>
-        <h3 style="margin-top: 20px; text-align: center; font-weight: 400; color: var(--text-muted);">Enter details to prepare clock tracker</h3>
-        <div class="form-group">
-            <label>First Name</label>
-            <input type="text" id="firstName" placeholder="Jane">
-        </div>
-        <div class="form-group">
-            <label>Last Name</label>
-            <input type="text" id="lastName" placeholder="Doe">
-        </div>
-        <button id="toStep2Btn">Proceed to Timing Portal ➡️</button>
+    <div class="brand-header">
+        <h1>Churn & Burn</h1>
+        <p>Running Club • Timing Portal</p>
     </div>
 
+    <div class="status-bar">
+        <div class="status-clock" id="sharedClock">00:00:00</div>
+        <div class="status-count" id="barFinisherCount">0 Finishers</div>
+    </div>
 
-    <div id="mainRaceContent" class="race-app-content">
-        
-        <div class="brand-header">
-            <h1>Churn & Burn</h1>
-            <p>Running Club • Timing System</p>
+    <div class="admin-section" id="adminConsole">
+        <label style="color: #ffc107; font-weight: bold;">Race Director Controls</label>
+        <div class="admin-btns">
+            <button id="startRaceBtn" style="background: #28a745; padding: 10px; font-size:12px;">🏁 Start Race</button>
+            <button id="resetRaceBtn" style="background: #dc3545; padding: 10px; font-size:12px;">🔄 Wipe Data</button>
         </div>
+    </div>
 
-        <div class="timer-banner">
-            <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-muted);">Official Race Clock</div>
-            <div class="timer-clock" id="sharedClock">00:00:00</div>
-            <div id="clockStatus" style="font-size: 12px; color: #ffc107; text-transform: uppercase; font-weight: 700;">Awaiting Race Start...</div>
-        </div>
-
-        <div class="admin-section" id="adminConsole">
-            <label style="color: #ffc107; margin-bottom: 8px;">Race Director Console</label>
-            <div class="admin-btns">
-                <button id="startRaceBtn" style="background: #28a745; margin-top:0;">🏁 Start Clock</button>
-                <button id="resetRaceBtn" style="background: #dc3545; margin-top:0;">🔄 Reset Feed</button>
+    <div id="tab-scan" class="tab-content active">
+        <div id="nameEntryCard" class="card">
+            <h3 style="margin-top: 0; text-align: center; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Log Your Lap Time</h3>
+            <div class="form-group">
+                <label>First Name</label>
+                <input type="text" id="firstName" placeholder="Jane">
             </div>
-        </div>
-        
-        <div class="card" style="margin-top:0;">
-            <div id="step2" class="step active">
-                <h3 style="margin-top: 0; color: var(--brand-orange); text-align:center;">Scan Finish Line QR Code</h3>
-                <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 15px; text-align:center;">Point your camera at the official marker board.</p>
-                
-                <div id="reader"></div>
-                
-                <div>
-                    <button id="backToStep1Btn" style="background:#555;">⬅️ Edit Identity / Change Runner</button>
-                </div>
+            <div class="form-group">
+                <label>Last Name</label>
+                <input type="text" id="lastName" placeholder="Doe">
             </div>
-            
-            <div id="status"></div>
+            <button id="openScannerBtn">Scan Finish Line QR 📷</button>
         </div>
 
-        <div class="dashboard">
-            <h3>Live Leaderboard <span class="count-badge" id="runnerCount">0 Finishers</span></h3>
+        <div id="scannerCard" class="card" style="display: none;">
+            <h3 style="margin-top: 0; color: var(--brand-orange); text-align:center; text-transform: uppercase;">Camera Viewfinder Active</h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px; text-align:center;">Hold your camera completely steady over the finish board code.</p>
+            <div id="reader"></div>
+            <button id="abortScanBtn" style="background:#555; margin-top: 10px;">⬅️ Cancel / Change Name</button>
+        </div>
+        
+        <div id="status"></div>
+    </div>
+
+    <div id="tab-leaderboard" class="tab-content">
+        <div class="card" style="padding: 10px 0;">
             <table id="runnersTable">
                 <thead>
                     <tr>
-                        <th>Duration</th>
-                        <th>Competitor</th>
-                        <th>Time Stamp</th>
+                        <th>Time Elapsed</th>
+                        <th>Competitor Name</th>
+                        <th>Clock Recorded</th>
                     </tr>
                 </thead>
-                <tbody></tbody>
+                <tbody>
+                    </tbody>
             </table>
         </div>
     </div>
+
+    <div id="tab-map" class="tab-content">
+        <div class="card">
+            <h3 style="margin-top:0; text-transform: uppercase; font-style: italic;">Course Map Routing</h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Official Lake trail routing telemetry overlay.</p>
+            
+            <div class="map-container">
+                <div class="map-grid-overlay"></div>
+                <div class="map-placeholder-text">
+                    <span style="font-size: 32px;">📍</span><br>
+                    <strong style="color: #fff;">GPS Map Pipeline Active</strong><br>
+                    <span style="font-size: 12px; color: #888;">Mapbox/Leaflet rendering viewport container</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <nav class="nav-dock">
+        <button class="nav-tab active" onclick="switchTab(event, 'tab-scan')">
+            <span class="icon">📷</span>
+            <span>Check-In</span>
+        </button>
+        <button class="nav-tab" onclick="switchTab(event, 'tab-leaderboard')">
+            <span class="icon">📊</span>
+            <span>Laps Log</span>
+        </button>
+        <button class="nav-tab" onclick="switchTab(event, 'tab-map')">
+            <span class="icon">🗺️</span>
+            <span>Live Map</span>
+        </button>
+    </nav>
+
 
     <script>
         let serverStartTime = null;
@@ -214,51 +297,51 @@
 
         const statusDiv = document.getElementById('status');
         const sharedClock = document.getElementById('sharedClock');
-        const clockStatus = document.getElementById('clockStatus');
 
         window.addEventListener('DOMContentLoaded', () => {
-            // Admin dynamic override tracking
             if (window.location.pathname.includes('/admin')) {
                 document.getElementById('adminConsole').style.display = 'block';
-                // Admins bypass the name entry shield immediately
-                revealMainPortal();
             }
             
             document.getElementById('firstName').value = localStorage.getItem('test_firstName') || '';
             document.getElementById('lastName').value = localStorage.getItem('test_lastName') || '';
             
-            // Wire up setup logic explicitly
-            document.getElementById('toStep2Btn').addEventListener('click', () => {
-                const fName = document.getElementById('firstName').value.trim();
-                const lName = document.getElementById('lastName').value.trim();
-
-                if(!fName || !lName) {
-                    alert("Please enter both your first and last name to proceed!");
-                    return;
-                }
-                revealMainPortal();
-                startQRScanner();
-            });
-
-            document.getElementById('backToStep1Btn').addEventListener('click', () => {
-                // Kill scanner pipeline cleanly
-                if (html5QrcodeScanner) {
-                    html5QrcodeScanner.clear().catch(e => console.error(e));
-                }
-                document.getElementById('mainRaceContent').style.display = 'none';
-                document.getElementById('initialEntryCard').style.display = 'block';
-            });
+            // Interaction Handlers
+            document.getElementById('openScannerBtn').addEventListener('click', startQRScanner);
+            document.getElementById('abortScanBtn').addEventListener('click', stopQRScanner);
             
             syncRaceStatus();
             setInterval(syncRaceStatus, 5000); 
         });
 
-        function revealMainPortal() {
-            document.getElementById('initialEntryCard').style.display = 'none';
-            document.getElementById('mainRaceContent').style.display = 'block';
+        // Tab Swapping Controller Engine
+        function switchTab(event, tabId) {
+            // Remove active tags from buttons
+            document.querySelectorAll('.nav-tab').forEach(btn => btn.classList.remove('active'));
+            // Clear content views
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // Activate current node targets
+            event.currentTarget.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+
+            // Force kill scanner sequence if user leaves check-in tab manually
+            if (tabId !== 'tab-scan') { stopQRScanner(); }
         }
 
         async function startQRScanner() {
+            const fName = document.getElementById('firstName').value.trim();
+            const lName = document.getElementById('lastName').value.trim();
+
+            if(!fName || !lName) {
+                alert("Please type your identity profile name fields out first!");
+                return;
+            }
+
+            // Interface component switch
+            document.getElementById('nameEntryCard').style.display = 'none';
+            document.getElementById('scannerCard').style.display = 'block';
+
             html5QrcodeScanner = new Html5Qrcode("reader");
             const config = { fps: 15, qrbox: { width: 250, height: 250 } };
 
@@ -269,18 +352,26 @@
                     onQrCodeSuccess
                 );
             } catch (err) {
-                showStatus("Camera pipeline locked or unavailable. Please ensure permissions are enabled.", "#ff3333", "#3a1a1a");
+                showStatus("Camera deployment error. Check browser permissions profiles.", "#ff3333", "#3a1a1a");
             }
         }
 
+        async function stopQRScanner() {
+            if (html5QrcodeScanner) {
+                try { await html5QrcodeScanner.stop(); } catch(e) { console.error(e); }
+                html5QrcodeScanner = null;
+            }
+            document.getElementById('scannerCard').style.display = 'none';
+            document.getElementById('nameEntryCard').style.display = 'block';
+        }
+
         async function onQrCodeSuccess(decodedText, decodedResult) {
-            if (decodedText.trim() === "CHURN_AND_BURN_FINISH") {
-                if(html5QrcodeScanner) {
-                    try { await html5QrcodeScanner.stop(); } catch(e) { console.error(e); }
-                }
+            // MATCH CONDITION: Change "finish" here if your code target says something else!
+            if (decodedText.trim() === "finish" || decodedText.trim() === "CHURN_AND_BURN_FINISH") {
+                if(html5QrcodeScanner) { await html5QrcodeScanner.stop().catch(e => console.error(e)); }
                 sendDataToBackend();
             } else {
-                showStatus("⚠️ Invalid QR Code. Scan the official Churn & Burn Finish board.", "#ffcc00", "#332a1a");
+                showStatus("⚠️ Invalid QR Code Target verified.", "#ffcc00", "#332a1a");
             }
         }
 
@@ -306,14 +397,10 @@
                 const data = await res.json();
                 if (data.raceStartTime) {
                     serverStartTime = data.raceStartTime;
-                    clockStatus.innerText = "⚡ RACE IS LIVE ⚡"; 
-                    clockStatus.style.color = "#00ff66";
                     startLocalClockTicker();
                 } else {
                     serverStartTime = null; clearInterval(clockInterval);
                     sharedClock.innerText = "00:00:00"; 
-                    clockStatus.innerText = "Awaiting Race Start..."; 
-                    clockStatus.style.color = "#ffc107";
                 }
                 updateDashboard();
             } catch (e) { console.error(e); }
@@ -347,13 +434,11 @@
                 const result = await response.json();
                 if(result.success) {
                     if (navigator.vibrate) navigator.vibrate([150, 50, 150]); 
-                    showStatus("🔥 FINISH TIME CLOCKED CORRECTLY!", "#00ff66", "#1a3a22");
+                    showStatus("🔥 LAP TIME RECORDED CORRECTLY!", "#00ff66", "#1a3a22");
                     updateDashboard();
                     
-                    // Route entirely back to blank name form slate for the next runner
                     setTimeout(() => { 
-                        document.getElementById('mainRaceContent').style.display = 'none';
-                        document.getElementById('initialEntryCard').style.display = 'block';
+                        stopQRScanner();
                         showStatus("", "", "transparent"); 
                     }, 4000);
                 }
@@ -364,7 +449,10 @@
             try {
                 const response = await fetch('/api/runners');
                 const runners = await response.json();
-                document.getElementById('runnerCount').innerText = `${runners.length} Finishers`;
+                
+                const displayCountStr = `${runners.length} Finishers`;
+                document.getElementById('barFinisherCount').innerText = displayCountStr;
+                
                 const tbody = document.querySelector('#runnersTable tbody');
                 tbody.innerHTML = '';
 
