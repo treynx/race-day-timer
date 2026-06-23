@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>One Dollar Ultra Tracker</title>
+    <title>Churn and Burn Ultra Tracker</title>
     <!-- Include the QR Code Camera Scanner Library -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
@@ -26,7 +26,6 @@
             padding: 20px 15px 90px 15px; 
             color: var(--text-main); 
             background-color: var(--bg-color);
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Ctext x='15' y='35' fill='%231a1a1a' fill-opacity='0.025' font-family='sans-serif' font-size='14' font-weight='bold'%3E$1%3C/text%3E%3C/svg%3E");
         }
 
         /* Top Persistent Status Panel */
@@ -264,7 +263,7 @@
 </head>
 <body>
 
-    <!-- PERSISTENT TOP STATUS BAR (Shows countdown clock to end of current hour loop) -->
+    <!-- PERSISTENT TOP STATUS BAR -->
     <div class="status-bar">
         <div class="status-meta">
             <span class="lap-indicator" id="currentLapLabel">Lap 1 Countdown</span>
@@ -369,7 +368,7 @@
         let html5QrcodeScanner = null;
         let expandedRunnerId = null;
 
-        const LAP_DISTANCE = 4.167; // Backyard Ultra Standard
+        const LAP_DISTANCE = 4.167; 
 
         const statusDiv = document.getElementById('status');
         const sharedClock = document.getElementById('sharedClock');
@@ -432,7 +431,8 @@
         }
 
         async function onQrCodeSuccess(decodedText, decodedResult) {
-            if (decodedText.trim() === "finish" || decodedText.trim() === "CHURN_AND_BURN_FINISH") {
+            const code = decodedText.trim();
+            if (code === "finish" || code === "CHURN_AND_BURN_FINISH") {
                 if(html5QrcodeScanner) { await html5QrcodeScanner.stop().catch(e => {}); }
                 sendDataToBackend();
             } else {
@@ -440,7 +440,6 @@
             }
         }
 
-        // Countdown Ticker for Backyard Loop Engine (Counts down from 60 mins to 0 every hour)
         function updateBackyardClock() {
             if (!serverStartTime) {
                 sharedClock.innerText = "60:00";
@@ -526,7 +525,6 @@
             updateDashboard();
         }
 
-        // Helper formatting functions for lap durations
         function formatLapDuration(ms) {
             if (!ms) return "--:--";
             let seconds = Math.floor(ms / 1000) % 60;
@@ -545,7 +543,6 @@
                 activeBody.innerHTML = '';
                 eliminatedBody.innerHTML = '';
 
-                // Segregate active field from DNFs based on whether they missed the current hour boundary
                 const totalElapsedMs = serverStartTime ? (Date.now() - serverStartTime) : 0;
                 const currentRaceHour = Math.floor(totalElapsedMs / 3600000);
 
@@ -556,7 +553,6 @@
                     const runnerLaps = runner.laps || 1; 
                     const uniqueId = runner.id || `runner-${index}`;
                     
-                    // If the race is running and their last logged lap is older than the previous hour window, they are DNF
                     if (serverStartTime && runnerLaps < currentRaceHour) {
                         dnfRunners.push({ ...runner, uniqueId });
                     } else {
@@ -564,14 +560,11 @@
                     }
                 });
 
-                // Update headers tracking status metrics
                 document.getElementById('barActiveCount').innerHTML = `${activeRunners.length} Active<br><span style="font-size:11px; color:var(--text-muted);">${dnfRunners.length} Eliminated</span>`;
 
-                // Sort lists cleanly
                 activeRunners.sort((a, b) => (b.laps || 1) - (a.laps || 1));
                 dnfRunners.sort((a, b) => (b.laps || 1) - (a.laps || 1));
 
-                // Render Active Field Table
                 let currentRank = 1;
                 activeRunners.forEach((runner, index) => {
                     if (index > 0 && (runner.laps || 1) !== (activeRunners[index - 1].laps || 1)) {
@@ -636,7 +629,6 @@
                     }
                 });
 
-                // Render DNF Field Table
                 dnfRunners.forEach((runner, index) => {
                     const row = document.createElement('tr');
                     row.style.opacity = "0.6";
