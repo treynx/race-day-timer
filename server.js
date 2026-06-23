@@ -5,9 +5,8 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Multi-path Static Directory Mapping to safeguard deployment assets
-app.use(express.static(path.join(__dirname)));
-app.use(express.static(path.join(__dirname, '..')));
+// Point Express directly to your "public" folder for static files
+app.use(express.static(path.join(__dirname, 'public')));
 
 // In-Memory State Engines
 let raceStartTime = null;
@@ -72,13 +71,9 @@ app.post('/api/checkin', (req, res) => {
     res.json({ success: true, runner });
 });
 
-// Fallback logic check path mapping
+// Fallback logic: Send index.html explicitly out of the public folder
 app.get('*', (req, res) => {
-    if (require('fs').existsSync(path.join(__dirname, 'index.html'))) {
-        res.sendFile(path.join(__dirname, 'index.html'));
-    } else {
-        res.sendFile(path.join(__dirname, '..', 'index.html'));
-    }
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.listen(PORT, () => {
