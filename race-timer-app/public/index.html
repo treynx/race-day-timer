@@ -3,61 +3,168 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Race Management</title>
+    <title>Churn & Burn Race Tracker</title>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; color: #333; }
-        .card { background: #f8f9fa; border: 1px solid #e9ecef; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-        .timer-banner { background: #212529; color: #fff; text-align: center; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-        .timer-clock { font-size: 42px; font-family: monospace; font-weight: bold; color: #00ff66; margin: 5px 0; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 16px; }
-        input { width: 100%; padding: 12px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
-        button { width: 100%; padding: 14px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px;}
+        :root {
+            --bg-color: #1a1a1a;
+            --card-bg: #2d2d2d;
+            --text-main: #ffffff;
+            --text-muted: #aaaaaa;
+            --brand-orange: #ff5500; /* Race Fire Orange */
+            --brand-green: #00ff66;  /* Neon Timer Green */
+            --border-color: #444444;
+        }
+
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            max-width: 600px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            color: var(--text-main); 
+            background-color: var(--bg-color);
+        }
+
+        /* Branding Header */
+        .brand-header {
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        .brand-header h1 {
+            font-size: 32px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: -1px;
+            margin: 0;
+            color: var(--brand-orange);
+            font-style: italic;
+        }
+        .brand-header p {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-muted);
+            margin: 5px 0 20px 0;
+        }
+
+        .card { 
+            background: var(--card-bg); 
+            border: 1px solid var(--border-color); 
+            padding: 25px; 
+            border-radius: 12px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        /* Live Clock Panel */
+        .timer-banner { 
+            background: #111111; 
+            text-align: center; 
+            padding: 20px; 
+            border-radius: 12px; 
+            margin-bottom: 20px; 
+            border: 1px solid #333;
+        }
+        .timer-clock { 
+            font-size: 48px; 
+            font-family: 'Courier New', monospace; 
+            font-weight: bold; 
+            color: var(--brand-green); 
+            margin: 5px 0; 
+            text-shadow: 0 0 10px rgba(0, 255, 102, 0.3);
+        }
         
-        /* Step Screen Visibility Controls */
+        .form-group { margin-bottom: 18px; }
+        label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px; text-transform: uppercase; color: var(--text-muted); }
+        input { 
+            width: 100%; 
+            padding: 14px; 
+            box-sizing: border-box; 
+            border: 2px solid var(--border-color); 
+            border-radius: 6px; 
+            font-size: 16px; 
+            background: #1f1f1f; 
+            color: #fff;
+        }
+        input:focus { border-color: var(--brand-orange); outline: none; }
+        
+        button { 
+            width: 100%; 
+            padding: 16px; 
+            background: var(--brand-orange); 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 16px; 
+            font-weight: 800; 
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 10px;
+            transition: transform 0.1s ease;
+        }
+        button:active { transform: scale(0.98); }
+        
+        /* Multi-Step Flow Config */
         .step { display: none; }
         .step.active { display: block; }
         
-        .admin-section { display: none; background: #fff3cd; border: 1px solid #ffeeba; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        /* Admin Section Box */
+        .admin-section { 
+            display: none; 
+            background: #3a2512; 
+            border: 1px solid #663d14; 
+            padding: 15px; 
+            border-radius: 12px; 
+            margin-bottom: 20px; 
+        }
         .admin-btns { display: flex; gap: 10px; }
-        #status { margin: 15px 0; padding: 10px; border-radius: 4px; font-weight: bold; text-align: center; display: none; }
-        #reader { width: 100%; max-width: 400px; margin: 15px auto; background: white; border-radius: 8px; overflow: hidden; }
         
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f1f1f1; }
-        .count-badge { background: #28a745; color: white; padding: 2px 8px; border-radius: 12px; font-size: 14px; float: right; }
+        #status { margin: 15px 0; padding: 12px; border-radius: 6px; font-weight: bold; text-align: center; display: none; }
+        #reader { width: 100%; max-width: 400px; margin: 15px auto; background: #222; border-radius: 8px; overflow: hidden; border: 2px dashed var(--border-color); }
+        
+        /* Standings Feed styling */
+        .dashboard { margin-top: 35px; border-top: 2px dashed var(--border-color); padding-top: 20px; }
+        .dashboard h3 { text-transform: uppercase; letter-spacing: 1px; font-style: italic; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); }
+        th { background-color: #222; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; color: var(--text-muted); }
+        .count-badge { background: var(--brand-orange); color: white; padding: 3px 10px; border-radius: 20px; font-size: 13px; font-weight: bold; float: right; font-style: normal; }
     </style>
 </head>
 <body>
 
+    <div class="brand-header">
+        <h1>Churn & Burn</h1>
+        <p>Running Club • Timing System</p>
+    </div>
+
     <div class="timer-banner">
-        <div style="font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #aaa;">Official Race Time</div>
+        <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-muted);">Official Race Clock</div>
         <div class="timer-clock" id="sharedClock">00:00:00</div>
-        <div id="clockStatus" style="font-size: 12px; color: #ffc107;">Waiting for Director to start race...</div>
+        <div id="clockStatus" style="font-size: 12px; color: #ffc107; text-transform: uppercase; font-weight: 700;">Awaiting Race Start...</div>
     </div>
 
     <div class="admin-section" id="adminConsole">
-        <label style="color: #856404; margin-bottom: 8px;">Race Director Console</label>
+        <label style="color: #ffc107; margin-bottom: 8px;">Race Director Console</label>
         <div class="admin-btns">
-            <button id="startRaceBtn" style="background: #28a745; margin-top:0;">🏁 Start Race</button>
-            <button id="resetRaceBtn" style="background: #dc3545; margin-top:0;">🔄 Reset All</button>
+            <button id="startRaceBtn" style="background: #28a745; margin-top:0;">🏁 Start Clock</button>
+            <button id="resetRaceBtn" style="background: #dc3545; margin-top:0;">🔄 Reset Feed</button>
         </div>
     </div>
     
     <div class="card">
         <div id="step1" class="step active">
-            <h3>Step 1: Identity</h3>
+            <h3 style="margin-top: 0;">Runner Identification</h3>
             <div class="form-group">
-                <label>Enter your Registration Email</label>
+                <label>Enter Registration Email</label>
                 <input type="email" id="email" placeholder="runner@example.com">
             </div>
-            <button onclick="goToStep(2)">Next Step ➡️</button>
+            <button onclick="goToStep(2)">Continue ➡️</button>
         </div>
 
         <div id="step2" class="step">
-            <h3>Step 2: Runner Name</h3>
+            <h3 style="margin-top: 0;">Runner Info</h3>
             <div class="form-group">
                 <label>First Name</label>
                 <input type="text" id="firstName" placeholder="Jane">
@@ -67,31 +174,31 @@
                 <input type="text" id="lastName" placeholder="Doe">
             </div>
             <div style="display: flex; gap:10px;">
-                <button onclick="goToStep(1)" style="background:#6c757d;">⬅️ Back</button>
-                <button onclick="startQRScanner()">Next Step ➡️</button>
+                <button onclick="goToStep(1)" style="background:#555;">⬅️ Back</button>
+                <button onclick="startQRScanner()">Open Scanner 📷</button>
             </div>
         </div>
 
         <div id="step3" class="step">
-            <h3>Step 3: Scan Finish Line QR Code</h3>
-            <p style="font-size: 14px; color: #666;">When you pass the layout, authorize camera access to scan the completion code.</p>
+            <h3 style="margin-top: 0; color: var(--brand-orange);">Scan Finish Line Code</h3>
+            <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 15px;">Point your lens matrix directly at the official finish board code.</p>
             
             <div id="reader"></div>
             
-            <button id="manualBtn" style="background: #6c757d;">Backup Manual Finish</button>
+            <button id="manualBtn" style="background: #555;">Manual Backup Lockout</button>
         </div>
         
         <div id="status"></div>
     </div>
 
     <div class="dashboard">
-        <h3>Live Standings <span class="count-badge" id="runnerCount">0</span></h3>
+        <h3>Live Leaderboard <span class="count-badge" id="runnerCount">0 Finshers</span></h3>
         <table id="runnersTable">
             <thead>
                 <tr>
                     <th>Duration</th>
-                    <th>Name</th>
-                    <th>Time In</th>
+                    <th>Competitor</th>
+                    <th>Time Stamp</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -121,8 +228,6 @@
         function goToStep(stepNum) {
             document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
             document.getElementById(`step${stepNum}`).classList.add('active');
-            
-            // If navigating away from scanner, kill the camera handle
             if (stepNum !== 3 && html5QrcodeScanner) {
                 html5QrcodeScanner.clear();
             }
@@ -134,37 +239,37 @@
             const lName = document.getElementById('lastName').value.trim();
 
             if(!email || !fName || !lName) {
-                alert("Please complete fields before continuing.");
+                alert("Please fill out your identity info first!");
                 return;
             }
 
             goToStep(3);
 
-            // Initialize camera tracking logic inside target container
             html5QrcodeScanner = new Html5Qrcode("reader");
-            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            const config = { fps: 15, qrbox: { width: 250, height: 250 } };
 
             try {
                 await html5QrcodeScanner.start(
-                    { facingMode: "environment" }, // Defaults back/rear camera
+                    { facingMode: "environment" },
                     config,
                     onQrCodeSuccess
                 );
             } catch (err) {
-                showStatus("Camera access denied or unavailable. Use backup button.", "#721c24", "#f8d7da");
+                showStatus("Camera block encountered. Use backup manual button.", "#ff3333", "#3a1a1a");
             }
         }
 
         async function onQrCodeSuccess(decodedText, decodedResult) {
-            // Stop scanning once a code hits the lens matrix
-            if(html5QrcodeScanner) {
-                await html5QrcodeScanner.stop();
+            // BRANDED VERIFICATION: Looks specifically for your unique Churn and Burn tracking tag text
+            if (decodedText.trim() === "CHURN_AND_BURN_FINISH") {
+                if(html5QrcodeScanner) await html5QrcodeScanner.stop();
+                sendDataToBackend();
+            } else {
+                // If they scan a random QR code by mistake
+                showStatus("⚠️ Invalid QR Code. Scan the official Churn & Burn Finish board.", "#ffcc00", "#332a1a");
             }
-            // Trigger payload logging
-            sendDataToBackend();
         }
 
-        // Keep rest of your synchronization engine intact
         function formatDuration(ms) {
             if (ms === null || ms === undefined) return "--:--:--";
             let totalSeconds = Math.floor(ms / 1000);
@@ -187,80 +292,8 @@
                 const data = await res.json();
                 if (data.raceStartTime) {
                     serverStartTime = data.raceStartTime;
-                    clockStatus.innerText = "🟢 RACE IS LIVE"; clockStatus.style.color = "#00ff66";
+                    clockStatus.innerText = "⚡ RACE IS LIVE ⚡"; clockStatus.style.color = var(--brand-green);
                     startLocalClockTicker();
                 } else {
                     serverStartTime = null; clearInterval(clockInterval);
-                    sharedClock.innerText = "00:00:00"; clockStatus.innerText = "Waiting for Director..."; clockStatus.style.color = "#ffc107";
-                }
-                updateDashboard();
-            } catch (e) { console.error(e); }
-        }
-
-        document.getElementById('startRaceBtn').addEventListener('click', async () => {
-            const res = await fetch('/api/race/start', { method: 'POST' });
-            const data = await res.json(); if(data.success) syncRaceStatus();
-        });
-
-        document.getElementById('resetRaceBtn').addEventListener('click', async () => {
-            if(confirm("Reset all clocks?")) {
-                const res = await fetch('/api/race/reset', { method: 'POST' });
-                const data = await res.json(); if(data.success) syncRaceStatus();
-            }
-        });
-
-        async function sendDataToBackend() {
-            const firstName = document.getElementById('firstName').value.trim();
-            const lastName = document.getElementById('lastName').value.trim();
-            const email = document.getElementById('email').value.trim();
-
-            localStorage.setItem('test_email', email);
-            localStorage.setItem('test_firstName', firstName);
-            localStorage.setItem('test_lastName', lastName);
-
-            try {
-                const response = await fetch('/api/checkin', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, firstName, lastName })
-                });
-                const result = await response.json();
-                if(result.success) {
-                    if (navigator.vibrate) navigator.vibrate([150]); 
-                    showStatus(`✅ Finish Logged!`, "#155724", "#d4edda");
-                    updateDashboard();
-                    setTimeout(() => { goToStep(1); showStatus("", "", "transparent"); }, 5000); // Route back after 5s
-                }
-            } catch (err) { showStatus("❌ Error saving data.", "#721c24", "#f8d7da"); }
-        }
-
-        async function updateDashboard() {
-            try {
-                const response = await fetch('/api/runners');
-                const runners = await response.json();
-                document.getElementById('runnerCount').innerText = runners.length;
-                const tbody = document.querySelector('#runnersTable tbody');
-                tbody.innerHTML = '';
-
-                runners.reverse().forEach(runner => {
-                    const row = document.createElement('tr');
-                    const tod = new Date(runner.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
-                    const durationText = runner.elapsedMs !== null ? formatDuration(runner.elapsedMs) : "Pre-Race";
-                    row.innerHTML = `
-                        <td style="font-family:monospace; font-weight:bold; color:${runner.elapsedMs ? '#007bff':'#6c757d'}">${durationText}</td>
-                        <td>${runner.firstName} ${runner.lastName}</td>
-                        <td style="color:#666;">${tod}</td>
-                    `;
-                    tbody.appendChild(row);
-                });
-            } catch (e) { console.error(e); }
-        }
-
-        function showStatus(text, color, bgColor) {
-            statusDiv.innerText = text; statusDiv.style.color = color; statusDiv.style.backgroundColor = bgColor; statusDiv.style.display = "block";
-        }
-
-        document.getElementById('manualBtn').addEventListener('click', sendDataToBackend);
-    </script>
-</body>
-</html>
+                    sharedClock.innerText
