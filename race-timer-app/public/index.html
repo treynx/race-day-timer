@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Churn and Burn Ultra Tracker</title>
-    <!-- Include the QR Code Camera Scanner Library -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         :root {
@@ -263,7 +262,6 @@
 </head>
 <body>
 
-    <!-- PERSISTENT TOP STATUS BAR -->
     <div class="status-bar">
         <div class="status-meta">
             <span class="lap-indicator" id="currentLapLabel">Lap 1 Countdown</span>
@@ -272,7 +270,6 @@
         <div class="status-count" id="barActiveCount">0 Active<br><span style="font-size:11px; color:var(--text-muted);" id="barDnfCount">0 Eliminated</span></div>
     </div>
 
-    <!-- DIRECTOR CONSOLE -->
     <div class="admin-section" id="adminConsole">
         <label style="color: var(--text-main); font-weight: bold;">Race Director Controls</label>
         <div class="admin-btns">
@@ -281,11 +278,6 @@
         </div>
     </div>
 
-    <!-- ============================================== -->
-    <!-- TAB CONTENT SECTIONS                           -->
-    <!-- ============================================== -->
-
-    <!-- TAB 1: RUNNER LAP CHECK-IN -->
     <div id="tab-scan" class="tab-content active">
         <div id="nameEntryCard" class="card">
             <div class="form-group">
@@ -307,7 +299,6 @@
         <div id="status"></div>
     </div>
 
-    <!-- TAB 2: LIVE LEADERBOARD / LAPS RESULTS PANEL -->
     <div id="tab-leaderboard" class="tab-content">
         
         <div class="section-title">Active Field</div>
@@ -323,8 +314,7 @@
                     </tr>
                 </thead>
                 <tbody id="leaderboardBody">
-                    <!-- Active runners populate here -->
-                </tbody>
+                    </tbody>
             </table>
         </div>
 
@@ -341,15 +331,11 @@
                     </tr>
                 </thead>
                 <tbody id="eliminatedBody">
-                    <!-- Eliminated runners populate here -->
-                </tbody>
+                    </tbody>
             </table>
         </div>
     </div>
 
-    <!-- ============================================== -->
-    <!-- NAVIGATION DOCK BAR                            -->
-    <!-- ============================================== -->
     <nav class="nav-dock">
         <button class="nav-tab active" onclick="switchTab(event, 'tab-scan')">
             <span>Check-In</span>
@@ -359,9 +345,6 @@
         </button>
     </nav>
 
-    <!-- ============================================== -->
-    <!-- CONTROL SCRIPTS ENGINE                         -->
-    <!-- ============================================== -->
     <script>
         let serverStartTime = null;
         let clockInterval = null;
@@ -374,6 +357,31 @@
         const sharedClock = document.getElementById('sharedClock');
         const currentLapLabel = document.getElementById('currentLapLabel');
 
+        // Dynamic Mid-race Tab Closure Recovery Logic
+        async function checkExistingRunner() {
+            const firstName = document.getElementById('firstName').value.trim();
+            const lastName = document.getElementById('lastName').value.trim();
+            if (!firstName || !lastName) return;
+
+            try {
+                const response = await fetch('/api/runners');
+                const runners = await response.json();
+                const match = runners.find(r => 
+                    r.firstName.toLowerCase() === firstName.toLowerCase() && 
+                    r.lastName.toLowerCase() === lastName.toLowerCase()
+                );
+
+                const scanBtn = document.getElementById('openScannerBtn');
+                if (match) {
+                    scanBtn.innerText = `Scan Loop QR (Lap ${match.laps + 1})`;
+                    showStatus(`RECONNECTED: Active profile found for ${firstName}.`, "#0066cc", "#edf2f7");
+                    setTimeout(() => { showStatus("", "", "transparent"); }, 3000);
+                } else {
+                    scanBtn.innerText = "Scan Loop QR Code";
+                }
+            } catch (e) { console.error(e); }
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
             if (window.location.pathname.includes('/admin')) {
                 document.getElementById('adminConsole').style.display = 'block';
@@ -381,6 +389,11 @@
             
             document.getElementById('firstName').value = localStorage.getItem('test_firstName') || '';
             document.getElementById('lastName').value = localStorage.getItem('test_lastName') || '';
+            
+            checkExistingRunner();
+
+            document.getElementById('firstName').addEventListener('input', checkExistingRunner);
+            document.getElementById('lastName').addEventListener('input', checkExistingRunner);
             
             document.getElementById('openScannerBtn').addEventListener('click', startQRScanner);
             document.getElementById('abortScanBtn').addEventListener('click', stopQRScanner);
@@ -515,7 +528,7 @@
                     if (navigator.vibrate) navigator.vibrate([100, 50, 100]); 
                     showStatus("LAP LOGGED SUCCESSFULLY", "#2b8a3e", "#ebfbee");
                     updateDashboard();
-                    setTimeout(() => { stopQRScanner(); showStatus("", "", "transparent"); }, 2000);
+                    setTimeout(() => { stopQRScanner(); showStatus("", "", "transparent"); checkExistingRunner(); }, 2000);
                 }
             } catch (err) { showStatus("Transmission error protocol path drop.", "#c92a2a", "#fff5f5"); }
         }
