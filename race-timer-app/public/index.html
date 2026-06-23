@@ -184,9 +184,8 @@
                 
                 <div id="reader"></div>
                 
-                <div style="display: flex; gap:10px;">
-                    <button id="backToStep1Btn" style="background:#555;">⬅️ Edit Identity</button>
-                    <button id="manualBtn" style="background: #ff5500;">Manual Backup Lockout</button>
+                <div>
+                    <button id="backToStep1Btn" style="background:#555;">⬅️ Edit Identity / Change Runner</button>
                 </div>
             </div>
             
@@ -242,15 +241,13 @@
             });
 
             document.getElementById('backToStep1Btn').addEventListener('click', () => {
-                // Kill scanner pipeline
+                // Kill scanner pipeline cleanly
                 if (html5QrcodeScanner) {
                     html5QrcodeScanner.clear().catch(e => console.error(e));
                 }
                 document.getElementById('mainRaceContent').style.display = 'none';
                 document.getElementById('initialEntryCard').style.display = 'block';
             });
-
-            document.getElementById('manualBtn').addEventListener('click', sendDataToBackend);
             
             syncRaceStatus();
             setInterval(syncRaceStatus, 5000); 
@@ -272,7 +269,7 @@
                     onQrCodeSuccess
                 );
             } catch (err) {
-                showStatus("Camera pipeline locked or unavailable. Tap manual lookup button.", "#ff3333", "#3a1a1a");
+                showStatus("Camera pipeline locked or unavailable. Please ensure permissions are enabled.", "#ff3333", "#3a1a1a");
             }
         }
 
@@ -353,7 +350,7 @@
                     showStatus("🔥 FINISH TIME CLOCKED CORRECTLY!", "#00ff66", "#1a3a22");
                     updateDashboard();
                     
-                    // Route entirely back to hidden entry slate for next runner use loop
+                    // Route entirely back to blank name form slate for the next runner
                     setTimeout(() => { 
                         document.getElementById('mainRaceContent').style.display = 'none';
                         document.getElementById('initialEntryCard').style.display = 'block';
@@ -376,7 +373,7 @@
                     const tod = new Date(runner.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
                     const durationText = runner.elapsedMs !== null ? formatDuration(runner.elapsedMs) : "Pre-Race";
                     row.innerHTML = `
-                        <td style="font-family:monospace; font-weight:bold; color:${runner.elapsedMs ? 'var(--brand-orange)':'#6c757d'}">${durationText}</td>
+                        <td style="font-family:monospace; font-weight:bold; color:${runner.elapsedMs ? '#ff5500':'#6c757d'}">${durationText}</td>
                         <td>${runner.firstName} ${runner.lastName}</td>
                         <td style="color:var(--text-muted); font-size: 12px;">${tod}</td>
                     `;
