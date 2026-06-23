@@ -212,6 +212,18 @@
         }
         button:active { opacity: 0.9; }
         
+        /* Button Row for QR and Manual Finish */
+        .button-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .button-row button {
+            margin: 0;
+            padding: 12px;
+            font-size: 13px;
+        }
+        
         #status { margin: 15px 0; padding: 12px; border-radius: 6px; font-weight: bold; text-align: center; display: none; }
         #reader { width: 100%; max-width: 400px; margin: 15px auto; background: #fff; border-radius: 8px; overflow: hidden; border: 1px dashed var(--text-muted); }
         
@@ -288,7 +300,10 @@
                 <label>Last Name</label>
                 <input type="text" id="lastName" placeholder="Doe" maxlength="50">
             </div>
-            <button id="openScannerBtn">Scan Loop QR Code</button>
+            <div class="button-row">
+                <button id="openScannerBtn">Scan QR Code</button>
+                <button id="manualFinishBtn" style="background: #2b8a3e;">Manual Finish</button>
+            </div>
         </div>
 
         <div id="scannerCard" class="card" style="display: none;">
@@ -374,11 +389,11 @@
 
                 const scanBtn = document.getElementById('openScannerBtn');
                 if (match) {
-                    scanBtn.innerText = `Scan Loop QR (Lap ${match.laps + 1})`;
+                    scanBtn.innerText = `Scan QR (Lap ${match.laps + 1})`;
                     showStatus(`RECONNECTED: Active profile found for ${firstName}.`, "#0066cc", "#edf2f7");
                     setTimeout(() => { showStatus("", "", "transparent"); }, 3000);
                 } else {
-                    scanBtn.innerText = "Scan Loop QR Code";
+                    scanBtn.innerText = "Scan QR Code";
                 }
             } catch (e) { 
                 console.error('Error checking existing runner:', e);
@@ -400,6 +415,7 @@
             
             document.getElementById('openScannerBtn').addEventListener('click', startQRScanner);
             document.getElementById('abortScanBtn').addEventListener('click', stopQRScanner);
+            document.getElementById('manualFinishBtn').addEventListener('click', manualFinish);
             
             syncRaceStatus();
             setInterval(syncRaceStatus, 5000); 
@@ -454,6 +470,18 @@
             } else {
                 showStatus("Invalid validation matrix code key target.", "#e67e22", "#fff9db");
             }
+        }
+
+        async function manualFinish() {
+            const fName = document.getElementById('firstName').value.trim();
+            const lName = document.getElementById('lastName').value.trim();
+
+            if(!fName || !lName) {
+                alert("Please complete name entry fields first.");
+                return;
+            }
+
+            await sendDataToBackend();
         }
 
         function updateBackyardClock() {
