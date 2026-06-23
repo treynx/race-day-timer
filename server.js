@@ -1,50 +1,89 @@
-// Call this helper to evaluate if a returning runner is already registered
-        async function checkExistingRunner() {
-            const firstName = document.getElementById('firstName').value.trim();
-            const lastName = document.getElementById('lastName').value.trim();
-            
-            if (!firstName || !lastName) return;
+const express = require('express');
+const path = require('path');
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-            try {
-                const response = await fetch('/api/runners');
-                const runners = await response.json();
-                
-                // See if this runner already exists in the active or DNF database
-                const match = runners.find(r => 
-                    r.firstName.toLowerCase() === firstName.toLowerCase() && 
-                    r.lastName.toLowerCase() === lastName.toLowerCase()
-                );
+app.use(express.json());
+// Serve static frontend assets cleanly
+app.use(express.static(path.join(__dirname)));
 
-                const scanBtn = document.getElementById('openScannerBtn');
-                if (match) {
-                    scanBtn.innerText = `Scan Loop QR (Lap ${match.laps + 1})`;
-                    showStatus(`RECONNECTED: Found active profile for ${firstName}.`, "#0066cc", "#edf2f7");
-                    // Keep the status visible for 3 seconds then fade out
-                    setTimeout(() => { showStatus("", "", "transparent"); }, 3000);
-                } else {
-                    scanBtn.innerText = "Scan Loop QR Code";
-                }
-            } catch (e) { console.error("Sync verification failed", e); }
-        }
+// In-Memory State Engines
+let raceStartTime = null;
+let runners = []; 
 
-        // Attach listeners to the input fields so it updates dynamically as they type or when page loads
-            if (window.location.pathname.includes('/admin')) {
-                document.getElementById('adminConsole').style.display = 'block';
-            }
-            
-            document.getElementById('firstName').value = localStorage.getItem('test_firstName') || '';
-            document.getElementById('lastName').value = localStorage.getItem('test_lastName') || '';
-            
-            // Check right away on load if we have cached names
-            checkExistingRunner();
+// --- API ENDPOINTS ---
 
-            // Also check if they manually re-type their name
-            document.getElementById('firstName').addEventListener('input', checkExistingRunner);
-            document.getElementById('lastName').addEventListener('input', checkExistingRunner);
-            
-            document.getElementById('openScannerBtn').addEventListener('click', startQRScanner);
-            document.getElementById('abortScanBtn').addEventListener('click', stopQRScanner);
-            
-            syncRaceStatus();
-            setInterval(syncRaceStatus, 5000); 
-        });
+// 1. Get current tracking status
+app.get('/api/race/status', (req, res) => {
+    res.json({ raceStartTime });
+});
+
+// 2. Start the master backyard clock
+app.post('/api/race/start', (req, res) => {
+    if (!raceStartTime) {
+        raceStartTime = Date.now();
+    }
+    res.json({ success: true, raceStartTime });
+});
+
+// 3. Clear data and reset environment
+app.post('/api/race/reset', (req, res) => {
+    raceStartTime = null;
+    runners = [];
+    res.json({ success: true });
+});
+
+// 4. Get entire runner roster state
+app.get('/api/runners', (req, res) => {
+    res.json(runners);
+});
+
+// 5. Check-In / Log Loop Entry Point
+app.post('/api/checkin', (req, res) => {
+    const { firstName, lastName } = req.body;
+    if (!firstName || !lastName) {
+        return res.status(400).json({ success: false, error: "Missing identity tags." });
+    }
+
+    const now = Date.now();
+    const totalElapsedMs = raceStartTime ? (now - raceStartTime) : 0;
+    const currentHourWindow = 3600000;
+
+    // Find if the competitor already exists
+    let runner = runners.find(r => 
+        r.firstName.toLowerCase() === firstName.toLowerCase() && 
+        r.lastName.toLowerCase() === lastName.toLowerCase()
+    );
+
+    if (!runner) {
+        // Brand new entry initialization
+        runner = {
+            id: `runner-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+            firstName,
+            lastName,
+            laps: 1,
+            timestamp: now,
+            elapsedMs: totalElapsedMs,
+            lastLapMs: totalElapsedMs
+        };
+        runners.push(runner);
+    } else {
+        // Calculate incremental loop delta split time
+        const lapMs = totalElapsedMs - runner.elapsedMs;
+        runner.laps += 1;
+        runner.timestamp = now;
+        runner.lastLapMs = lapMs;
+        runner.elapsedMs = totalElapsedMs;
+    }
+
+    res.json({ success: true, runner });
+});
+
+// Serve frontend route fallback
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.listen(PORT, () => {
+    console.log(`Churn & Burn engine roaring on port ${PORT}`);
+});
