@@ -147,12 +147,12 @@
             transition: all 0.2s;
         }
 
-        .runner-bubble-card-actions .log-lap-btn {
+        .runner-bubble-card-actions .scan-finish-btn {
             background: white;
             color: var(--brand-blue);
         }
 
-        .runner-bubble-card-actions .log-lap-btn:active {
+        .runner-bubble-card-actions .scan-finish-btn:active {
             transform: scale(0.98);
         }
 
@@ -297,18 +297,6 @@
         }
         button:active { opacity: 0.9; }
         
-        /* Button Row for QR and Manual Finish */
-        .button-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-        .button-row button {
-            margin: 0;
-            padding: 12px;
-            font-size: 13px;
-        }
-        
         #status { margin: 15px 0; padding: 12px; border-radius: 6px; font-weight: bold; text-align: center; display: none; }
         #reader { width: 100%; max-width: 400px; margin: 15px auto; background: #fff; border-radius: 8px; overflow: hidden; border: 1px dashed var(--text-muted); }
         
@@ -385,10 +373,7 @@
                 <label>Last Name</label>
                 <input type="text" id="lastName" placeholder="Doe" maxlength="50">
             </div>
-            <div class="button-row">
-                <button id="openScannerBtn">Scan QR Code</button>
-                <button id="manualFinishBtn" style="background: #2b8a3e;">Manual Finish</button>
-            </div>
+            <button id="openScannerBtn">Scan QR Code</button>
         </div>
 
         <div id="runnerProfileCard" class="runner-bubble-card" style="display: none;">
@@ -396,7 +381,7 @@
             <div class="runner-name-display" id="runnerNameDisplay">---</div>
             <div class="runner-badge" id="runnerBadgeDisplay">Lap 1</div>
             <div class="runner-bubble-card-actions">
-                <button class="log-lap-btn" id="quickLogLapBtn">Log Lap</button>
+                <button class="scan-finish-btn" id="scanFinishBtn">Scan Finish QR</button>
                 <button class="change-runner-btn" id="changeRunnerBtn">Change Runner</button>
             </div>
         </div>
@@ -530,8 +515,7 @@
             
             document.getElementById('openScannerBtn').addEventListener('click', startQRScanner);
             document.getElementById('abortScanBtn').addEventListener('click', stopQRScanner);
-            document.getElementById('manualFinishBtn').addEventListener('click', manualFinish);
-            document.getElementById('quickLogLapBtn').addEventListener('click', manualFinish);
+            document.getElementById('scanFinishBtn').addEventListener('click', startQRScanner);
             document.getElementById('changeRunnerBtn').addEventListener('click', () => {
                 document.getElementById('firstName').value = '';
                 document.getElementById('lastName').value = '';
@@ -562,6 +546,7 @@
             }
 
             document.getElementById('runnerProfileCard').style.display = 'none';
+            document.getElementById('nameEntryCard').style.display = 'none';
             document.getElementById('scannerCard').style.display = 'block';
 
             html5QrcodeScanner = new Html5Qrcode("reader");
@@ -591,18 +576,6 @@
             } else {
                 showStatus("Invalid validation matrix code key target.", "#e67e22", "#fff9db");
             }
-        }
-
-        async function manualFinish() {
-            const fName = document.getElementById('firstName').value.trim();
-            const lName = document.getElementById('lastName').value.trim();
-
-            if(!fName || !lName) {
-                alert("Please complete name entry fields first.");
-                return;
-            }
-
-            await sendDataToBackend();
         }
 
         function updateBackyardClock() {
