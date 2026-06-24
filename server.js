@@ -53,6 +53,7 @@ app.post('/api/checkin', (req, res) => {
 
     const now = Date.now();
     const totalElapsedMs = raceStartTime ? (now - raceStartTime) : 0;
+    const oneHourMs = 3600000;
 
     let runner = runners.find(r => 
         r.firstName.toLowerCase() === sanitizedFirstName.toLowerCase() && 
@@ -60,6 +61,7 @@ app.post('/api/checkin', (req, res) => {
     );
 
     if (!runner) {
+        // New runner - create and log first lap
         runner = {
             id: `runner-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
             firstName: sanitizedFirstName,
@@ -67,15 +69,35 @@ app.post('/api/checkin', (req, res) => {
             laps: 1,
             timestamp: now,
             elapsedMs: totalElapsedMs,
-            lastLapMs: totalElapsedMs
+            lastLapMs: totalElapsedMs,
+            lapTimestamps: [now]
         };
         runners.push(runner);
     } else {
+        // Existing runner - check one-lap-per-hour rule
+        const currentHourStart = Math.floor(totalElapsedMs / oneHourMs) * oneHourMs;
+        const currentHourEnd = currentHourStart + oneHourMs;
+
+        // Check if runner already has a lap in the current hour
+        const lapInCurrentHour = runner.lapTimestamps.some(lapTime => {
+            const lapElapsedMs = lapTime - raceStartTime;
+            return lapElapsedMs >= currentHourStart && lapElapsedMs < currentHourEnd;
+        });
+
+        if (lapInCurrentHour) {
+            return res.status(400).json({ 
+                success: false, 
+                error: `One lap per hour only. Next lap window opens at ${Math.ceil((currentHourEnd) / 1000)}s` 
+            });
+        }
+
+        // Log the new lap
         const lapMs = totalElapsedMs - runner.elapsedMs;
         runner.laps += 1;
         runner.timestamp = now;
         runner.lastLapMs = lapMs;
         runner.elapsedMs = totalElapsedMs;
+        runner.lapTimestamps.push(now);
     }
 
     res.json({ success: true, runner });
