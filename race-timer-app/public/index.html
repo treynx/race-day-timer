@@ -80,6 +80,91 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.02);
         }
 
+        /* Runner Profile Bubble Card */
+        .runner-bubble-card {
+            background: linear-gradient(135deg, var(--brand-blue) 0%, #003a99 100%);
+            color: white;
+            border: none;
+            padding: 30px 24px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0, 102, 204, 0.25);
+            text-align: center;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .runner-bubble-card .runner-name-display {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .runner-bubble-card .runner-status {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.9;
+            margin-bottom: 16px;
+        }
+
+        .runner-bubble-card .runner-badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+        }
+
+        .runner-bubble-card-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .runner-bubble-card-actions button {
+            flex: 1;
+            padding: 10px;
+            font-size: 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+
+        .runner-bubble-card-actions .log-lap-btn {
+            background: white;
+            color: var(--brand-blue);
+        }
+
+        .runner-bubble-card-actions .log-lap-btn:active {
+            transform: scale(0.98);
+        }
+
+        .runner-bubble-card-actions .change-runner-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .runner-bubble-card-actions .change-runner-btn:active {
+            transform: scale(0.98);
+        }
+
         /* Section Headings */
         .section-title {
             font-size: 11px;
@@ -306,6 +391,16 @@
             </div>
         </div>
 
+        <div id="runnerProfileCard" class="runner-bubble-card" style="display: none;">
+            <div class="runner-status" id="runnerStatus">Ready for next lap</div>
+            <div class="runner-name-display" id="runnerNameDisplay">---</div>
+            <div class="runner-badge" id="runnerBadgeDisplay">Lap 1</div>
+            <div class="runner-bubble-card-actions">
+                <button class="log-lap-btn" id="quickLogLapBtn">Log Lap</button>
+                <button class="change-runner-btn" id="changeRunnerBtn">Change Runner</button>
+            </div>
+        </div>
+
         <div id="scannerCard" class="card" style="display: none;">
             <div id="reader"></div>
             <button id="abortScanBtn" style="background:#666; margin-top: 12px;">Cancel Entry</button>
@@ -365,6 +460,8 @@
         let clockInterval = null;
         let html5QrcodeScanner = null;
         let expandedRunnerId = null;
+        let currentRunnerName = null;
+        let currentRunnerLaps = 0;
 
         const LAP_DISTANCE = 4.167; 
 
@@ -376,7 +473,10 @@
         async function checkExistingRunner() {
             const firstName = document.getElementById('firstName').value.trim();
             const lastName = document.getElementById('lastName').value.trim();
-            if (!firstName || !lastName) return;
+            if (!firstName || !lastName) {
+                hideRunnerProfile();
+                return;
+            }
 
             try {
                 const response = await fetch('/api/runners');
@@ -387,17 +487,32 @@
                     r.lastName.toLowerCase() === lastName.toLowerCase()
                 );
 
-                const scanBtn = document.getElementById('openScannerBtn');
                 if (match) {
-                    scanBtn.innerText = `Scan QR (Lap ${match.laps + 1})`;
-                    showStatus(`RECONNECTED: Active profile found for ${firstName}.`, "#0066cc", "#edf2f7");
-                    setTimeout(() => { showStatus("", "", "transparent"); }, 3000);
+                    currentRunnerName = `${match.firstName} ${match.lastName}`;
+                    currentRunnerLaps = match.laps || 1;
+                    showRunnerProfile();
                 } else {
-                    scanBtn.innerText = "Scan QR Code";
+                    hideRunnerProfile();
                 }
             } catch (e) { 
                 console.error('Error checking existing runner:', e);
+                hideRunnerProfile();
             }
+        }
+
+        function showRunnerProfile() {
+            document.getElementById('nameEntryCard').style.display = 'none';
+            document.getElementById('runnerProfileCard').style.display = 'block';
+            document.getElementById('runnerNameDisplay').textContent = currentRunnerName;
+            document.getElementById('runnerBadgeDisplay').textContent = `Lap ${currentRunnerLaps + 1}`;
+            document.getElementById('runnerStatus').textContent = `${currentRunnerLaps} lap${currentRunnerLaps !== 1 ? 's' : ''} completed`;
+        }
+
+        function hideRunnerProfile() {
+            document.getElementById('nameEntryCard').style.display = 'block';
+            document.getElementById('runnerProfileCard').style.display = 'none';
+            currentRunnerName = null;
+            currentRunnerLaps = 0;
         }
 
         window.addEventListener('DOMContentLoaded', () => {
@@ -416,6 +531,12 @@
             document.getElementById('openScannerBtn').addEventListener('click', startQRScanner);
             document.getElementById('abortScanBtn').addEventListener('click', stopQRScanner);
             document.getElementById('manualFinishBtn').addEventListener('click', manualFinish);
+            document.getElementById('quickLogLapBtn').addEventListener('click', manualFinish);
+            document.getElementById('changeRunnerBtn').addEventListener('click', () => {
+                document.getElementById('firstName').value = '';
+                document.getElementById('lastName').value = '';
+                hideRunnerProfile();
+            });
             
             syncRaceStatus();
             setInterval(syncRaceStatus, 5000); 
@@ -440,7 +561,7 @@
                 return;
             }
 
-            document.getElementById('nameEntryCard').style.display = 'none';
+            document.getElementById('runnerProfileCard').style.display = 'none';
             document.getElementById('scannerCard').style.display = 'block';
 
             html5QrcodeScanner = new Html5Qrcode("reader");
@@ -459,7 +580,7 @@
                 html5QrcodeScanner = null;
             }
             document.getElementById('scannerCard').style.display = 'none';
-            document.getElementById('nameEntryCard').style.display = 'block';
+            checkExistingRunner();
         }
 
         async function onQrCodeSuccess(decodedText, decodedResult) {
